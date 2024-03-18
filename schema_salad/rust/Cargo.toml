@@ -1,0 +1,17 @@
+[package]
+name = "{package_name}"
+version = "{package_version}"
+authors = [ "Giuseppe Eletto <giuseppe@eletto.me>" ]
+license = "Apache-2.0"
+rust-version = "1.66.1"
+publish = false
+edition = "2021"
+
+[features]
+arc = []
+
+[dependencies]
+compact_str = { version = "0.7", features = [ "serde" ] }
+fxhash = "0.2"
+schema_salad-macro = { path = "./macro" }
+serde = "1.0"

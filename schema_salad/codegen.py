@@ -23,6 +23,7 @@ from .exceptions import SchemaSaladException
 from .java_codegen import JavaCodeGen
 from .python_codegen import PythonCodeGen
 from .ref_resolver import Loader
+from .rust_codegen import RustCodeGen
 from .schema import shortname
 from .typescript_codegen import TypeScriptCodeGen
 from .utils import aslist
@@ -107,6 +108,10 @@ def codegen(
         gen = TypeScriptCodeGen(base, target=target, package=pkg, examples=examples)
     elif lang == "dotnet":
         gen = DotNetCodeGen(base, target=target, package=pkg, examples=examples)
+    elif lang == "rust":
+        gen = RustCodeGen(package=pkg, salad_version=salad_version, target=target)
+        gen.parse(j)
+        return
     else:
         raise SchemaSaladException(f"Unsupported code generation language {lang!r}")
 
