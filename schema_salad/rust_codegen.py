@@ -363,7 +363,7 @@ class UnionRustType(RustType):
         self._docs.append(f"/// Matches constant value `{self.value}`.")
 
         self._attributes.append(f"#[salad(as_str = \"{self.value}\")]")
-        self._attributes.append("#[derive(Clone, Copy)]")
+        self._attributes.append("#[derive(Clone, Copy, Debug)]")
 
     def write_to(self, writer: IOWrapper, depth: int = 0) -> None:
         depth2 = 4 * (depth + 1)
