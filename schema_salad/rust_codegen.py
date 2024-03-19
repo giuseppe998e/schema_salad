@@ -621,7 +621,7 @@ class RustNames:
 
 
 #
-# Rust primitive types
+# Rust types preset
 #
 
 BOOL_RUST_TYPE = RustType(
@@ -660,7 +660,7 @@ ANY_RUST_TYPE = RustType(
     docs="Any non-null value.",
 )
 
-PRIM_RUST_TYPES = {
+RUST_TYPES_PRESET = {
     # Salad types to be overridden
     "boolean": BOOL_RUST_TYPE,
     "int": INT_RUST_TYPE,
@@ -670,15 +670,15 @@ PRIM_RUST_TYPES = {
     "string": STRING_RUST_TYPE,
     "org.w3id.cwl.salad.Any": ANY_RUST_TYPE,
     "org.w3id.cwl.salad.RecordSchema.type.Record_name": UnionRustType(
-        name="RecordType",
+        name="RecordSchemaType",
         value="record",
     ),
     "org.w3id.cwl.salad.ArraySchema.type.Array_name": UnionRustType(
-        name="ArrayType",
+        name="ArraySchemaType",
         value="array",
     ),
     "org.w3id.cwl.salad.EnumSchema.type.Enum_name": UnionRustType(
-        name="EnumType",
+        name="EnumSchemaType",
         value="enum",
     ),
 
@@ -704,7 +704,7 @@ class RustCodeGen(CodeGenBase):
         self.src_dir = self.target_dir / "src"
         self.salad_version = salad_version[1:] if salad_version.startswith("v") else salad_version
 
-        self.rust_names = RustNames(PRIM_RUST_TYPES)
+        self.rust_names = RustNames(RUST_TYPES_PRESET)
 
     def parse(self, items: List[Dict[str, Any]]) -> None:
         # Copy template Rust sources
