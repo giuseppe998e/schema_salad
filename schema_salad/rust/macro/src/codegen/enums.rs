@@ -46,7 +46,7 @@ pub(super) fn generate_enum(input: InputEnum) -> syn::Result<TokenStream2> {
 
 mod tuples {
     use super::*;
-    use crate::metadata::SALAD_ATTR_ROOT;
+    use crate::{metadata::SALAD_ATTR_ROOT, util::TypeExt};
 
     pub(super) fn generate_enum(input: &InputEnum) -> TokenStream2 {
         let InputEnum {
@@ -109,13 +109,38 @@ mod tuples {
             let variant_ident = &v.ident;
             let variant_ty = unsafe { &v.field.as_ref().unwrap_unchecked().ty };
 
-            quote! {
-                #[automatically_derived]
-                impl _std::convert::From<#variant_ty> for self::#ident {
-                    fn from(value: #variant_ty) -> Self {
-                        self::#ident::#variant_ident(value)
+            let variant_ty_ident = variant_ty.to_variant_ident().to_string();
+            match variant_ty_ident.as_str() {
+                "StrValue" => quote! {
+                    #[automatically_derived]
+                    impl _std::convert::From<&str> for self::#ident {
+                        fn from(value: &str) -> Self {
+                            self::#ident::#variant_ident(
+                                _std::convert::Into::into(value)
+                            )
+                        }
                     }
-                }
+                },
+                "BoxStrValueSlice" => quote! {
+                    #[automatically_derived]
+                    impl _std::convert::From<&[&str]> for self::#ident {
+                        fn from(value: &[&str]) -> Self {
+                            let box_slice = value
+                                    .iter()
+                                    .map(|s| _std::convert::Into::into(*s))
+                                    .collect::<Box<[_]>>();
+                            self::#ident::#variant_ident(box_slice)
+                        }
+                    }
+                },
+                _ => quote! {
+                    #[automatically_derived]
+                    impl _std::convert::From<#variant_ty> for self::#ident {
+                        fn from(value: #variant_ty) -> Self {
+                            self::#ident::#variant_ident(value)
+                        }
+                    }
+                },
             }
         })
     }
