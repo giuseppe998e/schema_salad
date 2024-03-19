@@ -695,10 +695,12 @@ RUST_TYPES_PRESET = {
 class RustCodeGen(CodeGenBase):
     def __init__(
         self,
+        base_uri: str,
         package: str,
         salad_version: str,
         target: Optional[str],
     ) -> None:
+        self.base_uri = base_uri
         self.package = package
         self.target_dir = Path(target or ".").resolve()
         self.src_dir = self.target_dir / "src"
@@ -744,13 +746,14 @@ class RustCodeGen(CodeGenBase):
             EnumRustType(
                 name="DocumentRoot",
                 variants=[EnumTupleVariant(t) for t in self.root_types],
-                salad_attrs={"root": None}
+                salad_attrs={"root": None, "base_uri": self.base_uri}
             ).write_to(w)
 
     def schema_to_rust(self, schema: Schema) -> RustType:
         salad_attrs: Dict[str, Any] = {}
         if schema.get_prop("documentRoot") is True:
             salad_attrs["root"] = None
+            salad_attrs["base_uri"] = self.base_uri
 
         # Parse record schema
         if isinstance(schema, RecordSchema):

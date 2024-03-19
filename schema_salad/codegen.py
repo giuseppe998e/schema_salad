@@ -109,7 +109,7 @@ def codegen(
     elif lang == "dotnet":
         gen = DotNetCodeGen(base, target=target, package=pkg, examples=examples)
     elif lang == "rust":
-        gen = RustCodeGen(package=pkg, salad_version=salad_version, target=target)
+        gen = RustCodeGen(base_uri=base, package=pkg, salad_version=salad_version, target=target)
         gen.parse(j)
         return
     else:
