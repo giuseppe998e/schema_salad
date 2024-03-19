@@ -475,7 +475,7 @@ class EnumTupleVariant(EnumVariant):
 
     @property
     def name(self) -> str:
-        return self.ty.name
+        return str(self.ty)
 
     def write_to(self, writer: IOWrapper, depth: int = 0) -> None:
         for attr in self.attributes:
