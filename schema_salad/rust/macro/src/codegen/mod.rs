@@ -25,13 +25,13 @@ fn generate_root_de_impl(
     if salad_attrs.contains_and_is_true(SALAD_ATTR_ROOT) {
         Some(quote! {
             #[automatically_derived]
-            impl<'_de> _serde::de::Deserialize<'_de> for #ident {
+            impl<'_de> _serde::de::Deserialize<'_de> for self::#ident {
                 fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
                 where
                     D: _serde::de::Deserializer<'_de>
                 {
                     let data = crate::util::de::SeedData::new();
-                    let seed = #seed_ident(&data);
+                    let seed = self::#seed_ident(&data);
                     _serde::de::DeserializeSeed::deserialize(seed, deserializer)
                 }
             }

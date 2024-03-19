@@ -17,6 +17,7 @@ pub(crate) use self::attrs::{
 use crate::util::{StrExt, TypeExt};
 
 pub(crate) type PunctuatedFields = Punctuated<StructField, Token![,]>;
+pub(crate) type PunctuatedVariants = Punctuated<EnumVariant, Token![,]>;
 
 #[derive(Clone)]
 pub(crate) enum MacroInput {
@@ -46,7 +47,7 @@ pub(crate) struct InputStruct {
     pub attrs: Vec<Attribute>,
     pub vis: Visibility,
     pub ident: Ident,
-    pub fields: Punctuated<StructField, Token![,]>,
+    pub fields: PunctuatedFields,
     pub seed_ident: Ident,
     pub value_ident: Ident,
 }
@@ -186,7 +187,7 @@ pub(crate) struct InputEnum {
     pub attrs: Vec<Attribute>,
     pub vis: Visibility,
     pub ident: Ident,
-    pub variants: Punctuated<EnumVariant, Token![,]>,
+    pub variants: PunctuatedVariants,
     pub seed_ident: Ident,
 }
 
