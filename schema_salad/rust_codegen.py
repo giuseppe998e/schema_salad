@@ -705,6 +705,7 @@ class RustCodeGen(CodeGenBase):
         self.salad_version = salad_version[1:] if salad_version.startswith("v") else salad_version
 
         self.rust_names = RustNames(RUST_TYPES_PRESET)
+        self.root_types: List[RustType] = []
 
     def parse(self, items: List[Dict[str, Any]]) -> None:
         # Copy template Rust sources
@@ -731,11 +732,20 @@ class RustCodeGen(CodeGenBase):
             if not schema.name.startswith(salad_package):
                 rust_ty = self.schema_to_rust(schema)
                 self.rust_names.add(schema.name, rust_ty)
-    
+                if schema.get_prop("documentRoot") is True:
+                    self.root_types.append(rust_ty)
+
         # Generate the Rust source code
         with IOWrapper.open(f"{self.src_dir}/lib.rs", "a") as w:
             for rust in self.rust_names:
                 rust.write_to(w)
+
+            # Root "Document" enum
+            EnumRustType(
+                name="DocumentRoot",
+                variants=[EnumTupleVariant(t) for t in self.root_types],
+                salad_attrs={"root": None}
+            ).write_to(w)
 
     def schema_to_rust(self, schema: Schema) -> RustType:
         salad_attrs: Dict[str, Any] = {}
