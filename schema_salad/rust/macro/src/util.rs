@@ -9,18 +9,17 @@ mod strings {
         fn to_snake_case(&self) -> String {
             let mut buf = String::with_capacity(self.len() * 2);
             let mut input_iter = self.chars().peekable();
-
+        
             while let Some(ch) = input_iter.next() {
-                let lowercase_ch = ch.to_ascii_lowercase();
-                buf.push(lowercase_ch);
-
+                buf.push(ch.to_ascii_lowercase());
+        
                 if let Some(next_ch) = input_iter.peek() {
-                    if ch.is_ascii_lowercase() && next_ch.is_ascii_uppercase() {
+                    if next_ch.is_ascii_uppercase() && ch.is_ascii_lowercase() {
                         buf.push('_')
                     }
                 }
             }
-
+        
             buf
         }
     }
