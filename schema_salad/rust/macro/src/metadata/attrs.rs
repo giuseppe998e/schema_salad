@@ -30,14 +30,11 @@ impl MacroAttributes {
         self.map.get(key)
     }
 
-    pub fn get_string(&self, ident: &str) -> syn::Result<Option<&LitStr>> {
-        if let Some(lit) = self.get(ident) {
-            match lit {
-                Lit::Str(s) => Ok(Some(s)),
-                _ => Err(syn::Error::new(lit.span(), "a string value was expected")),
-            }
-        } else {
-            Ok(None)
+    pub fn get_string(&self, key: &str) -> syn::Result<Option<&LitStr>> {
+        match self.map.get(key) {
+            Some(Lit::Str(s)) => Ok(Some(s)),
+            Some(lit) => Err(syn::Error::new(lit.span(), "a string value was expected")),
+            _ => Ok(None),
         }
     }
 }
