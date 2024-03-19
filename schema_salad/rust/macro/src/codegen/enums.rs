@@ -45,24 +45,23 @@ pub(super) fn generate_enum(input: InputEnum) -> syn::Result<TokenStream2> {
 }
 
 mod tuples {
-    use syn::Ident;
-
     use super::*;
-    use crate::metadata::{MacroAttributes, PunctuatedVariants, SALAD_ATTR_ROOT};
+    use crate::metadata::SALAD_ATTR_ROOT;
 
     pub(super) fn generate_enum(input: &InputEnum) -> TokenStream2 {
         let InputEnum {
-            salad_attrs,
             attrs,
             vis,
             ident,
             variants,
             seed_ident,
+            ..
         } = &input;
 
-        let variant_ident_iter = variants.iter().map(|v| &v.ident);
-        let root_deserialize_impl = self::generate_root_de_impl(ident, salad_attrs, variants);
-        let deserialize_impl = generate_de_impl(ident, seed_ident, variants);
+        let tryfrom_impls = self::generate_from_impls(input);
+        let serialize_impl = self::generate_ser_impl(input);
+        let deserialize_impl = self::generate_de_impl(input);
+        let root_deserialize_impl = self::generate_root_de_impl(input);
 
         quote! {
             #(#attrs)*
@@ -81,17 +80,9 @@ mod tuples {
                 #[automatically_derived]
                 impl crate::core::SaladType for self::#ident {}
 
-                #[automatically_derived]
-                impl _serde::ser::Serialize for self::#ident {
-                    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-                    where
-                        S: _serde::ser::Serializer,
-                    {
-                        match self {
-                            #( Self::#variant_ident_iter(v) => v.serialize(serializer) ),*
-                        }
-                    }
-                }
+                #( #tryfrom_impls )*
+
+                #serialize_impl
 
                 #[automatically_derived]
                 impl<'_de, '_sd> crate::util::de::IntoDeserializeSeed<'_de, '_sd> for self::#ident {
@@ -109,11 +100,56 @@ mod tuples {
         }
     }
 
-    fn generate_de_impl(
-        ident: &Ident,
-        seed_ident: &Ident,
-        variants: &PunctuatedVariants,
-    ) -> TokenStream2 {
+    fn generate_from_impls<'i>(input: &'i InputEnum) -> impl Iterator<Item = TokenStream2> + 'i {
+        let InputEnum {
+            ident, variants, ..
+        } = input;
+
+        variants.iter().map(move |v| {
+            let variant_ident = &v.ident;
+            let variant_ty = unsafe { &v.field.as_ref().unwrap_unchecked().ty };
+
+            quote! {
+                #[automatically_derived]
+                impl _std::convert::From<#variant_ty> for self::#ident {
+                    fn from(value: #variant_ty) -> Self {
+                        self::#ident::#variant_ident(value)
+                    }
+                }
+            }
+        })
+    }
+
+    fn generate_ser_impl(input: &InputEnum) -> TokenStream2 {
+        let InputEnum {
+            ident, variants, ..
+        } = input;
+
+        let variant_ident_iter = variants.iter().map(|v| &v.ident);
+
+        quote! {
+            #[automatically_derived]
+            impl _serde::ser::Serialize for self::#ident {
+                fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where
+                    S: _serde::ser::Serializer,
+                {
+                    match self {
+                        #( Self::#variant_ident_iter(v) => v.serialize(serializer) ),*
+                    }
+                }
+            }
+        }
+    }
+
+    fn generate_de_impl(input: &InputEnum) -> TokenStream2 {
+        let InputEnum {
+            ident,
+            variants,
+            seed_ident,
+            ..
+        } = input;
+
         let err_string = format!("data did not match any variant of enum `{}`", ident);
 
         let variant_ident_iter = variants.iter().map(|v| &v.ident);
@@ -162,11 +198,14 @@ mod tuples {
         }
     }
 
-    fn generate_root_de_impl(
-        ident: &Ident,
-        salad_attrs: &MacroAttributes,
-        variants: &PunctuatedVariants,
-    ) -> Option<TokenStream2> {
+    fn generate_root_de_impl(input: &InputEnum) -> Option<TokenStream2> {
+        let InputEnum {
+            salad_attrs,
+            ident,
+            variants,
+            ..
+        } = input;
+
         if !salad_attrs.contains_and_is_true(SALAD_ATTR_ROOT) {
             return None;
         }
@@ -269,7 +308,7 @@ mod units {
                 #[automatically_derived]
                 impl _std::convert::TryFrom<&str> for self::#ident {
                     type Error = ();
-                    
+
                     #[inline]
                     fn try_from(value: &str) -> Result<Self, Self::Error> {
                         <self::#ident as _std::str::FromStr>::from_str(value)
@@ -299,7 +338,6 @@ mod units {
 
                 #[automatically_derived]
                 impl _serde::Serialize for self::#ident {
-                    #[inline]
                     fn serialize<S: _serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
                         serializer.collect_str(self)
                     }
