@@ -267,6 +267,16 @@ mod units {
                 impl crate::core::SaladType for self::#ident {}
 
                 #[automatically_derived]
+                impl _std::convert::TryFrom<&str> for self::#ident {
+                    type Error = ();
+                    
+                    #[inline]
+                    fn try_from(value: &str) -> Result<Self, Self::Error> {
+                        <self::#ident as _std::str::FromStr>::from_str(value)
+                    }
+                }
+
+                #[automatically_derived]
                 impl _std::str::FromStr for self::#ident {
                     type Err = ();
 
