@@ -37,7 +37,7 @@ pub(super) fn generate_enum(input: InputEnum) -> syn::Result<TokenStream2> {
             ident.span(),
             "Mixed tuple and unit enum is not supported.",
         )),
-        (0, _) => Err(syn::Error::new(
+        _ => Err(syn::Error::new(
             ident.span(),
             "Enum without variants is not supported",
         )),
