@@ -34,26 +34,30 @@ pub(super) fn generate_unit(input: InputUnit) -> syn::Result<TokenStream2> {
             extern crate std as _std;
 
             #[automatically_derived]
-            impl crate::core::SaladType for #ident {}
+            impl crate::core::SaladType for self::#ident {}
 
             #[automatically_derived]
-            impl _std::fmt::Display for #ident {
-                #[inline]
-                fn fmt(&self, f: &mut _std::fmt::Formatter<'_>) -> _std::fmt::Result {
-                    _std::fmt::Display::fmt(#value, f)
+            impl _std::str::FromStr for self::#ident {
+                type Err = ();
+
+                fn from_str(input: &str) -> Result<Self, Self::Err> {
+                    match input {
+                        #value => Ok(Self),
+                        _ => Err(())
+                    }
                 }
             }
 
             #[automatically_derived]
-            impl _std::fmt::Debug for #ident {
+            impl _std::fmt::Display for self::#ident {
                 #[inline]
                 fn fmt(&self, f: &mut _std::fmt::Formatter<'_>) -> _std::fmt::Result {
-                    _std::fmt::Debug::fmt(#value, f)
+                    f.write_str(#value)
                 }
             }
 
             #[automatically_derived]
-            impl _serde::Serialize for #ident {
+            impl _serde::Serialize for self::#ident {
                 #[inline]
                 fn serialize<S: _serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
                     serializer.collect_str(#value)
@@ -61,7 +65,7 @@ pub(super) fn generate_unit(input: InputUnit) -> syn::Result<TokenStream2> {
             }
 
             #[automatically_derived]
-            impl<'_de, '_sd> crate::util::de::IntoDeserializeSeed<'_de, '_sd> for #ident {
+            impl<'_de, '_sd> crate::util::de::IntoDeserializeSeed<'_de, '_sd> for self::#ident {
                 type Value = _std::marker::PhantomData<Self>;
 
                 #[inline]
@@ -71,7 +75,7 @@ pub(super) fn generate_unit(input: InputUnit) -> syn::Result<TokenStream2> {
             }
 
             #[automatically_derived]
-            impl<'_de> _serde::Deserialize<'_de> for #ident {
+            impl<'_de> _serde::Deserialize<'_de> for self::#ident {
                 fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
                 where
                     D: _serde::Deserializer<'_de>,
@@ -79,7 +83,7 @@ pub(super) fn generate_unit(input: InputUnit) -> syn::Result<TokenStream2> {
                     struct UnitVisitor;
 
                     impl<'de> _serde::de::Visitor<'de> for UnitVisitor {
-                        type Value = #ident;
+                        type Value = self::#ident;
 
                         fn expecting(&self, f: &mut _std::fmt::Formatter) -> _std::fmt::Result {
                             f.write_str(#expected_str)
@@ -89,13 +93,12 @@ pub(super) fn generate_unit(input: InputUnit) -> syn::Result<TokenStream2> {
                         where
                             E: _serde::de::Error,
                         {
-                            if v == #value {
-                                Ok(#ident)
-                            } else {
-                                Err(_serde::de::Error::invalid_value(
+                            match v {
+                                #value => Ok(self::#ident),
+                                _ => Err(_serde::de::Error::invalid_value(
                                     _serde::de::Unexpected::Str(v),
                                     &#value,
-                                ))
+                                )),
                             }
                         }
                     }

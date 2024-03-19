@@ -235,13 +235,11 @@ mod units {
 
         let variant_ident_iter1 = variants.iter().map(|v| &v.ident);
         let variant_ident_iter2 = variant_ident_iter1.clone();
-        let variant_ident_iter3 = variant_ident_iter1.clone();
 
         let variant_value_iter1 = variant_strings.iter().map(|s| s);
         let variant_value_iter2 = variant_value_iter1.clone();
-        let variant_value_iter3 = variant_value_iter1.clone();
 
-        let values_str = variant_value_iter1
+        let values_str = variant_value_iter2
             .clone()
             .map(|s| format!("\"{}\"", s.value()))
             .collect::<Vec<_>>()
@@ -269,20 +267,31 @@ mod units {
                 impl crate::core::SaladType for self::#ident {}
 
                 #[automatically_derived]
+                impl _std::str::FromStr for self::#ident {
+                    type Err = ();
+
+                    fn from_str(input: &str) -> Result<Self, Self::Err> {
+                        match input {
+                            #( #variant_value_iter1 => Ok(self::#ident::#variant_ident_iter1), )*
+                            _ => Err(()),
+                        }
+                    }
+                }
+
+                #[automatically_derived]
                 impl _std::fmt::Display for self::#ident {
                     fn fmt(&self, f: &mut _std::fmt::Formatter<'_>) -> _std::fmt::Result {
                         match self {
-                            #( Self::#variant_ident_iter1 => f.write_str(#variant_value_iter1) ),*
+                            #( Self::#variant_ident_iter2 => f.write_str(#variant_value_iter2) ),*
                         }
                     }
                 }
 
                 #[automatically_derived]
                 impl _serde::Serialize for self::#ident {
+                    #[inline]
                     fn serialize<S: _serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-                        match self {
-                            #( Self::#variant_ident_iter2 => serializer.collect_str(#variant_value_iter2) ),*
-                        }
+                        serializer.collect_str(self)
                     }
                 }
 
@@ -312,13 +321,11 @@ mod units {
                             }
 
                             fn visit_str<E: _serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
-                                match v {
-                                    #( #variant_value_iter3 => Ok(self::#ident::#variant_ident_iter3), )*
-                                    _ => Err(_serde::de::Error::invalid_value(
+                                <self::#ident as _std::str::FromStr>::from_str(v)
+                                    .map_err(|_| _serde::de::Error::invalid_value(
                                         _serde::de::Unexpected::Str(v),
                                         &#values_str,
                                     ))
-                                }
                             }
                         }
 
