@@ -412,10 +412,14 @@ class EnumRustType(RustType):
             writer.write_line(attr, depth2)
 
         writer.write_line(f"pub enum {self.name} {{", depth2)
+        
+        variant_seen = {}
         for variant in self.variants:
-            variant.write_to(writer, depth3)
-        writer.write_line("}", depth2)
+            if not variant_seen.get(variant.name, False):
+                variant.write_to(writer, depth3)
+                variant_seen[variant.name] = True
 
+        writer.write_line("}", depth2)
         writer.write_line("}", depth)
 
 
@@ -432,6 +436,9 @@ class EnumVariant(CodeProducer):
         if isinstance(salad_attrs, dict):
             self.attributes.extend(generate_salad_attrs(salad_attrs))
 
+    @property
+    def name(self) -> str:
+        raise NotImplemented()
 
 class EnumUnitVariant(EnumVariant):
     def __init__(
@@ -442,8 +449,12 @@ class EnumUnitVariant(EnumVariant):
         salad_attrs: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__(docs, attributes, salad_attrs)
-        self.name = safe_rust_name(value)
+        self._name = safe_rust_name(value)
         self.value = value
+
+    @property
+    def name(self) -> str:
+        return self._name
 
     def write_to(self, writer: IOWrapper, depth: int = 0) -> None:
         writer.write_line(f"/// Matches constant value `{self.value}`.", depth)
@@ -461,6 +472,10 @@ class EnumTupleVariant(EnumVariant):
     ) -> None:
         super().__init__(docs, attributes, salad_attrs)
         self.ty = ty
+
+    @property
+    def name(self) -> str:
+        return self.ty.name
 
     def write_to(self, writer: IOWrapper, depth: int = 0) -> None:
         for attr in self.attributes:
@@ -668,14 +683,7 @@ PRIM_RUST_TYPES = {
     ),
 
     # CWL types to be overridden
-    "org.w3id.cwl.cwl.Expression": RustType(
-        name=STRING_RUST_TYPE.name,
-        docs=[
-            "Fragment of Javascript/ECMAScript 5.1 code evaluated by the workflow",
-            "platform to affect the inputs, outputs, or behavior of a process",
-        ],
-        variant="Expression",
-    ),
+    "org.w3id.cwl.cwl.Expression": STRING_RUST_TYPE,
 }
 
 
