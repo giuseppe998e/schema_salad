@@ -1,7 +1,6 @@
 use std::{
-    cell::RefCell,
-    collections::{HashSet, VecDeque},
-    marker::PhantomData,
+    borrow::Borrow, cell::UnsafeCell, collections::HashSet, marker::PhantomData, mem::ManuallyDrop,
+    ptr::NonNull,
 };
 
 use compact_str::{format_compact, CompactString};
@@ -11,28 +10,31 @@ use crate::core;
 
 /// Data structure that supports deserialization
 /// while retaining state and auxiliary information.
-#[derive(Clone)]
-pub(crate) struct SeedData(RefCell<SeedDataInner>);
+pub(crate) struct SeedData(UnsafeCell<SeedDataInner>);
 
 struct SeedDataInner {
     ids: HashSet<CompactString, FxBuildHasher>,
-    parent_ids: VecDeque<CompactString>,
+    parent_ids: Vec<CompactString>,
 }
 
 impl SeedData {
     pub fn new() -> Self {
-        Self(RefCell::new(SeedDataInner {
+        Self(UnsafeCell::new(SeedDataInner {
             ids: HashSet::with_hasher(FxBuildHasher::default()),
-            parent_ids: VecDeque::with_capacity(8),
+            parent_ids: Vec::with_capacity(8),
         }))
     }
+}
 
+impl SeedData {
     // TODO Verify correctness
     // https://www.commonwl.org/v1.2/SchemaSalad.html#Identifier_resolution
     pub fn generate_id(&self, id: CompactString) -> Result<String, String> {
-        let mut inner = self.0.borrow_mut();
+        // SAFETY The dereferencing of the pointer occurs only here
+        // and no other method exposes the reference externally.
+        let inner = unsafe { &mut *self.0.get() };
 
-        let (id, parent_id) = match (id.strip_prefix('#'), inner.parent_ids.back()) {
+        let (id, parent_id) = match (id.strip_prefix('#'), inner.parent_ids.last()) {
             (Some(sub_id), _) => {
                 let new_id = CompactString::from(sub_id);
                 (new_id.clone(), new_id)
@@ -50,7 +52,7 @@ impl SeedData {
 
         if !inner.ids.contains(id.as_str()) {
             inner.ids.insert(id.clone());
-            inner.parent_ids.push_back(parent_id);
+            inner.parent_ids.push(parent_id);
             Ok(id.into_string())
         } else {
             Err(format!("duplicate identifier `{id}`"))
@@ -58,25 +60,32 @@ impl SeedData {
     }
 
     pub fn push_subscope(&self, subscope: &str) {
-        let mut inner = self.0.borrow_mut();
-        match inner.parent_ids.back().cloned() {
-            Some(mut subscope_id) => {
-                subscope_id.push('/');
-                subscope_id.push_str(subscope);
-                inner.parent_ids.push_back(subscope_id)
+        // SAFETY The dereferencing of the pointer occurs only here
+        // and no other method exposes the reference externally.
+        let inner = unsafe { &mut *self.0.get() };
+
+        match inner.parent_ids.last().cloned() {
+            Some(mut id) => {
+                id.push('/');
+                id.push_str(subscope);
+                inner.parent_ids.push(id)
             }
-            None => inner.parent_ids.push_back(CompactString::from(subscope)),
+            None => inner.parent_ids.push(CompactString::from(subscope)),
         }
     }
 
     pub fn pop_parent_id(&self) {
-        let mut inner = self.0.borrow_mut();
-        let _ = inner.parent_ids.pop_back();
+        // SAFETY The dereferencing of the pointer occurs only here
+        // and no other method exposes the reference externally.
+        let inner = unsafe { &mut *self.0.get() };
+        let _ = inner.parent_ids.pop();
     }
 
     pub fn extend(&self, other: SeedData) -> Result<(), String> {
+        // SAFETY The dereferencing of the pointer occurs only here
+        // and no other method exposes the reference externally.
+        let inner = unsafe { &mut *self.0.get() };
         let SeedDataInner { ids, .. } = other.0.into_inner();
-        let mut inner = self.0.borrow_mut();
 
         for id in ids.into_iter() {
             if !inner.ids.contains(id.as_str()) {
@@ -87,6 +96,16 @@ impl SeedData {
         }
 
         Ok(())
+    }
+}
+
+impl Clone for SeedData {
+    fn clone(&self) -> Self {
+        // SAFETY The dereferencing of the pointer occurs only here
+        // and no other method exposes the reference externally.
+        let inner = unsafe { &mut *self.0.get() };
+        let inner_clone = SeedDataInner::clone(inner);
+        Self(UnsafeCell::new(inner_clone))
     }
 }
 
