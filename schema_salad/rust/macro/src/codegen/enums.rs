@@ -214,7 +214,7 @@ mod tuples {
             ..
         } = input;
 
-        let err_string = format!("data did not match any variant of enum `{}`", ident);
+        let err_string = format!("data did not match any variant of enum {}", ident);
 
         let variant_ident_iter = variants.iter().map(|v| &v.ident);
         let variant_ty_iter = variants.iter().map(|v| {
@@ -275,7 +275,7 @@ mod tuples {
             return None;
         }
 
-        let err_string = format!("data did not match any variant of enum `{}`", ident);
+        let err_string = format!("data did not match any variant of enum {}", ident);
 
         let variant_ident_iter = variants.iter().map(|v| &v.ident);
         let variant_ty_iter = variants.iter().map(|v| {
