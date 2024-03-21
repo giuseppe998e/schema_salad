@@ -222,14 +222,6 @@ impl<'de, 'sd> de::DeserializeSeed<'de> for AnySeed<'sd> {
                 Ok(Any::String(v.into()))
             }
 
-            #[inline]
-            fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                Self::visit_str(self, v)
-            }
-
             fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
             where
                 E: de::Error,
@@ -245,14 +237,6 @@ impl<'de, 'sd> de::DeserializeSeed<'de> for AnySeed<'sd> {
                     Ok(s) => Ok(Any::String(s.into())),
                     Err(_) => Err(de::Error::invalid_value(de::Unexpected::Bytes(v), &self)),
                 }
-            }
-
-            #[inline]
-            fn visit_borrowed_bytes<E>(self, v: &'de [u8]) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                Self::visit_bytes(self, v)
             }
 
             fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<Self::Value, E>
