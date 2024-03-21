@@ -5,7 +5,7 @@ use serde::{
     de::{self, DeserializeSeed},
 };
 
-use super::{IntoDeserializeSeed, SeedData};
+use crate::de::{IntoDeserializeSeed, SeedData};
 
 // Default logic for deserialization of `Box<[T]>`
 impl<'de, 'sd, T> IntoDeserializeSeed<'de, 'sd> for Box<[T]>

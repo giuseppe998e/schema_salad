@@ -1,9 +1,7 @@
 mod any;
-mod object;
 mod primitive;
 
-pub use self::any::Any;
-pub use self::object::Object;
+pub use self::any::{Any, Object};
 pub use self::primitive::{Bool, Double, Float, Int, Long, StrValue};
 
 // XXX: Mirrors the "std::any::Any" type methods

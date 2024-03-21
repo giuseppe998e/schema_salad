@@ -36,7 +36,7 @@ pub(super) fn generate_struct(input: InputStruct) -> syn::Result<TokenStream2> {
     Ok(quote! {
         #( #attrs )*
         #vis struct #ident(
-            crate::util::Ref<
+            crate::Ref<
                 ::std::collections::HashMap<
                     ::compact_str::CompactString,
                     self::#value_ident,
@@ -46,7 +46,7 @@ pub(super) fn generate_struct(input: InputStruct) -> syn::Result<TokenStream2> {
         );
 
         #[doc(hidden)]
-        pub(crate) struct #seed_ident<'_sd>(&'_sd crate::util::de::SeedData);
+        pub(crate) struct #seed_ident<'_sd>(&'_sd crate::de::SeedData);
 
         #value_enum
 
@@ -72,11 +72,11 @@ pub(super) fn generate_struct(input: InputStruct) -> syn::Result<TokenStream2> {
             #value_ser_impl
 
             #[automatically_derived]
-            impl<'_de, '_sd> crate::util::de::IntoDeserializeSeed<'_de, '_sd> for #ident {
+            impl<'_de, '_sd> crate::de::IntoDeserializeSeed<'_de, '_sd> for #ident {
                 type Value = self::#seed_ident<'_sd>;
 
                 #[inline]
-                fn into_dseed(data: &'_sd crate::util::de::SeedData) -> Self::Value {
+                fn into_dseed(data: &'_sd crate::de::SeedData) -> Self::Value {
                     #seed_ident(data)
                 }
             }
@@ -222,10 +222,10 @@ mod de {
 
                     match (map_key, map_predicate) {
                         (Some(key), None) => {
-                            quote!( crate::util::de::MapOrSeqDeserializeSeed::new(#key, None, self.0) )
+                            quote!( crate::de::list::MapOrSeqDeserializeSeed::new(#key, None, self.0) )
                         }
                         (Some(key), Some(pred)) => {
-                            quote!( crate::util::de::MapOrSeqDeserializeSeed::new(#key, Some(#pred), self.0) )
+                            quote!( crate::de::list::MapOrSeqDeserializeSeed::new(#key, Some(#pred), self.0) )
                         }
                         _ => quote!( <#ty>::into_dseed(self.0) ),
                     }
@@ -261,7 +261,7 @@ mod de {
                 where
                     D: _serde::de::Deserializer<'_de>,
                 {
-                    struct StructVisitor<'_sd>(&'_sd crate::util::de::SeedData);
+                    struct StructVisitor<'_sd>(&'_sd crate::de::SeedData);
 
                     impl<'_sd, '_de> _serde::de::Visitor<'_de> for StructVisitor<'_sd> {
                         type Value = self::#ident;
@@ -310,7 +310,7 @@ mod de {
                             };
 
                             let struct_map = {
-                                use crate::util::de::IntoDeserializeSeed;
+                                use crate::de::IntoDeserializeSeed;
 
                                 let mut struct_map = _std::collections::HashMap::with_capacity_and_hasher(
                                     #fields_count, _fxhash::FxBuildHasher::default()
@@ -343,7 +343,7 @@ mod de {
                                 self.0.pop_parent_id();
                             }
 
-                            Ok(self::#ident(crate::util::Ref::new(struct_map)))
+                            Ok(self::#ident(crate::Ref::new(struct_map)))
                         }
                     }
 
@@ -385,10 +385,10 @@ mod de {
 
                     match (map_key, map_predicate) {
                         (Some(key), None) => {
-                            quote!( crate::util::de::MapOrSeqDeserializeSeed::new(#key, None, self.0) )
+                            quote!( crate::de::list::MapOrSeqDeserializeSeed::new(#key, None, self.0) )
                         }
                         (Some(key), Some(pred)) => {
-                            quote!( crate::util::de::MapOrSeqDeserializeSeed::new(#key, Some(#pred), self.0) )
+                            quote!( crate::de::list::MapOrSeqDeserializeSeed::new(#key, Some(#pred), self.0) )
                         }
                         _ => quote!( <#ty>::into_dseed(self.0) ),
                     }
@@ -422,7 +422,7 @@ mod de {
                 where
                     D: _serde::de::Deserializer<'_de>,
                 {
-                    struct StructVisitor<'_sd>(&'_sd crate::util::de::SeedData);
+                    struct StructVisitor<'_sd>(&'_sd crate::de::SeedData);
 
                     impl<'_sd, '_de> _serde::de::Visitor<'_de> for StructVisitor<'_sd> {
                         type Value = self::#ident;
@@ -436,7 +436,7 @@ mod de {
                             A: _serde::de::MapAccess<'_de>,
                         {
                             let struct_map = {
-                                use crate::util::de::IntoDeserializeSeed;
+                                use crate::de::IntoDeserializeSeed;
 
                                 let mut struct_map = _std::collections::HashMap::with_capacity_and_hasher(
                                     #fields_count, _fxhash::FxBuildHasher::default()
@@ -466,7 +466,7 @@ mod de {
 
                             #( #mandatory_fields )*
 
-                            Ok(self::#ident(crate::util::Ref::new(struct_map)))
+                            Ok(self::#ident(crate::Ref::new(struct_map)))
                         }
                     }
 

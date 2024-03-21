@@ -1,10 +1,13 @@
+mod object;
+
 use std::fmt;
 
 use serde::{de, ser};
 
+pub use self::object::Object;
 use crate::{
-    core::{Bool, Double, Float, Int, Long, Object, SaladType, StrValue},
-    util::de::{IntoDeserializeSeed, SeedData},
+    core::{Bool, Double, Float, Int, Long, SaladType, StrValue},
+    de::{SeedData, IntoDeserializeSeed},
 };
 
 #[derive(Debug, Clone)]

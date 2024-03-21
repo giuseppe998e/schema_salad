@@ -6,7 +6,7 @@ use serde::{de, ser};
 
 use crate::{
     core::{Any, SaladType},
-    util::de::{IntoDeserializeSeed, SeedData},
+    de::{IntoDeserializeSeed, SeedData},
 };
 
 #[derive(Debug, Clone)]

@@ -1,5 +1,3 @@
-mod list;
-
 use std::{
     cell::RefCell,
     collections::{HashSet, VecDeque},
@@ -9,7 +7,7 @@ use std::{
 use compact_str::{format_compact, CompactString};
 use fxhash::FxBuildHasher;
 
-pub(crate) use self::list::MapOrSeqDeserializeSeed;
+use crate::core;
 
 /// Data structure that supports deserialization
 /// while retaining state and auxiliary information.
@@ -108,8 +106,8 @@ pub(crate) trait IntoDeserializeSeed<'de, 'sd> {
     fn into_dseed(data: &'sd SeedData) -> Self::Value;
 }
 
-impl<'de, 'sd> IntoDeserializeSeed<'de, 'sd> for crate::core::Bool {
-    type Value = PhantomData<crate::core::Bool>;
+impl<'de, 'sd> IntoDeserializeSeed<'de, 'sd> for core::Bool {
+    type Value = PhantomData<core::Bool>;
 
     #[inline]
     fn into_dseed(_: &'sd SeedData) -> Self::Value {
@@ -117,8 +115,8 @@ impl<'de, 'sd> IntoDeserializeSeed<'de, 'sd> for crate::core::Bool {
     }
 }
 
-impl<'de, 'sd> IntoDeserializeSeed<'de, 'sd> for crate::core::Int {
-    type Value = PhantomData<crate::core::Int>;
+impl<'de, 'sd> IntoDeserializeSeed<'de, 'sd> for core::Int {
+    type Value = PhantomData<core::Int>;
 
     #[inline]
     fn into_dseed(_: &'sd SeedData) -> Self::Value {
@@ -126,8 +124,8 @@ impl<'de, 'sd> IntoDeserializeSeed<'de, 'sd> for crate::core::Int {
     }
 }
 
-impl<'de, 'sd> IntoDeserializeSeed<'de, 'sd> for crate::core::Long {
-    type Value = PhantomData<crate::core::Long>;
+impl<'de, 'sd> IntoDeserializeSeed<'de, 'sd> for core::Long {
+    type Value = PhantomData<core::Long>;
 
     #[inline]
     fn into_dseed(_: &'sd SeedData) -> Self::Value {
@@ -135,8 +133,8 @@ impl<'de, 'sd> IntoDeserializeSeed<'de, 'sd> for crate::core::Long {
     }
 }
 
-impl<'de, 'sd> IntoDeserializeSeed<'de, 'sd> for crate::core::Float {
-    type Value = PhantomData<crate::core::Float>;
+impl<'de, 'sd> IntoDeserializeSeed<'de, 'sd> for core::Float {
+    type Value = PhantomData<core::Float>;
 
     #[inline]
     fn into_dseed(_: &'sd SeedData) -> Self::Value {
@@ -144,8 +142,8 @@ impl<'de, 'sd> IntoDeserializeSeed<'de, 'sd> for crate::core::Float {
     }
 }
 
-impl<'de, 'sd> IntoDeserializeSeed<'de, 'sd> for crate::core::Double {
-    type Value = PhantomData<crate::core::Double>;
+impl<'de, 'sd> IntoDeserializeSeed<'de, 'sd> for core::Double {
+    type Value = PhantomData<core::Double>;
 
     #[inline]
     fn into_dseed(_: &'sd SeedData) -> Self::Value {
@@ -153,8 +151,8 @@ impl<'de, 'sd> IntoDeserializeSeed<'de, 'sd> for crate::core::Double {
     }
 }
 
-impl<'de, 'sd> IntoDeserializeSeed<'de, 'sd> for crate::core::StrValue {
-    type Value = PhantomData<crate::core::StrValue>;
+impl<'de, 'sd> IntoDeserializeSeed<'de, 'sd> for core::StrValue {
+    type Value = PhantomData<core::StrValue>;
 
     #[inline]
     fn into_dseed(_: &'sd SeedData) -> Self::Value {
