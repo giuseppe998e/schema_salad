@@ -1,8 +1,4 @@
-use std::{
-    cell::RefCell,
-    collections::HashSet,
-    marker::PhantomData,
-};
+use std::{cell::RefCell, collections::HashSet, marker::PhantomData};
 
 use compact_str::{format_compact, CompactString};
 use fxhash::FxBuildHasher;
