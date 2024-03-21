@@ -64,7 +64,10 @@ mod types {
         fn into_typeref(mut self) -> Type {
             match self {
                 Type::Path(TypePath { ref mut path, .. }) => {
-                    let last_segment = unsafe { path.segments.last_mut().unwrap_unchecked() };
+                    let last_segment = {
+                        debug_assert!(path.segments.last().is_some());
+                        unsafe { path.segments.last_mut().unwrap_unchecked() }
+                    };
 
                     if last_segment.ident == "Bool"
                         || last_segment.ident == "Int"
@@ -80,8 +83,11 @@ mod types {
                                 generics.args.first().cloned()
                             {
                                 if !subty.is_salad_primitive() {
-                                    let generic_arg =
-                                        unsafe { generics.args.first_mut().unwrap_unchecked() };
+                                    let generic_arg = {
+                                        debug_assert!(generics.args.first_mut().is_some());
+                                        unsafe { generics.args.first_mut().unwrap_unchecked() }
+                                    };
+
                                     *generic_arg = GenericArgument::Type(subty.into_typeref())
                                 }
 
@@ -122,7 +128,10 @@ mod types {
         fn to_variant_ident(&self) -> Ident {
             match self {
                 Type::Path(TypePath { path, .. }) => {
-                    let last_segment = unsafe { path.segments.last().unwrap_unchecked() };
+                    let last_segment = {
+                        debug_assert!(path.segments.last().is_some());
+                        unsafe { path.segments.last().unwrap_unchecked() }
+                    };
 
                     if let PathArguments::AngleBracketed(generics) = &last_segment.arguments {
                         if let Some(GenericArgument::Type(subty)) = generics.args.first() {
@@ -144,7 +153,11 @@ mod types {
 
         fn is_salad_primitive(&self) -> bool {
             if let Type::Path(TypePath { path, .. }) = self {
-                let last_segment = unsafe { path.segments.last().unwrap_unchecked() };
+                let last_segment = {
+                    debug_assert!(path.segments.last().is_some());
+                    unsafe { path.segments.last().unwrap_unchecked() }
+                };
+
                 return last_segment.ident == "Bool"
                     || last_segment.ident == "Int"
                     || last_segment.ident == "Long"

@@ -108,7 +108,10 @@ mod tuples {
 
         variants.iter().map(move |v| {
             let variant_ident = &v.ident;
-            let variant_ty = unsafe { &v.field.as_ref().unwrap_unchecked().ty };
+            let variant_ty = {
+                debug_assert!(v.field.is_some());
+                unsafe { &v.field.as_ref().unwrap_unchecked().ty }
+            };
 
             let variant_ty_ident = variant_ty.to_variant_ident().to_string();
             match variant_ty_ident.as_str() {
@@ -181,7 +184,10 @@ mod tuples {
         let variant_ident_iter = variants.iter().map(|v| &v.ident);
         let variant_ty_iter = variants
             .iter()
-            .map(|v| unsafe { &v.field.as_ref().unwrap_unchecked().ty });
+            .map(|v| {
+                debug_assert!(v.field.is_some());
+                unsafe { &v.field.as_ref().unwrap_unchecked().ty }
+            });
 
         quote! {
             #[automatically_derived]
@@ -241,7 +247,10 @@ mod tuples {
         let variant_ident_iter = variants.iter().map(|v| &v.ident);
         let variant_ty_iter = variants
             .iter()
-            .map(|v| unsafe { &v.field.as_ref().unwrap_unchecked().ty });
+            .map(|v| {
+                debug_assert!(v.field.is_some());
+                unsafe { &v.field.as_ref().unwrap_unchecked().ty }
+            });
 
         Some(quote! {
             #[automatically_derived]
