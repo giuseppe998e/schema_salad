@@ -6,7 +6,7 @@ use serde::{de, ser};
 
 pub use self::object::Object;
 use crate::{
-    core::{Bool, Double, Float, Int, Long, SaladType, StrValue},
+    core::{Bool, Double, Float, Int, List, Long, SaladType, StrValue},
     de::{IntoDeserializeSeed, SeedData},
 };
 
@@ -19,7 +19,7 @@ pub enum Any {
     Long(Long),
     String(StrValue),
     Object(Object),
-    List(Box<[Self]>),
+    List(List<Self>),
 }
 
 impl SaladType for Any {}
@@ -103,9 +103,7 @@ impl<'de, 'sd> de::DeserializeSeed<'de> for AnySeed<'sd> {
     where
         D: de::Deserializer<'de>,
     {
-        struct AnyVisitor<'sd>(&'sd SeedData);
-
-        impl<'de, 'sd> de::Visitor<'de> for AnyVisitor<'sd> {
+        impl<'de, 'sd> de::Visitor<'de> for AnySeed<'sd> {
             type Value = Any;
 
             fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -266,11 +264,11 @@ impl<'de, 'sd> de::DeserializeSeed<'de> for AnySeed<'sd> {
                 A: de::SeqAccess<'de>,
             {
                 let deserializer = de::value::SeqAccessDeserializer::new(seq);
-                let seed = <Box<[Any]> as IntoDeserializeSeed>::into_dseed(self.0);
+                let seed = <List<Any> as IntoDeserializeSeed>::into_dseed(self.0);
                 de::DeserializeSeed::deserialize(seed, deserializer).map(Any::List)
             }
         }
 
-        deserializer.deserialize_any(AnyVisitor(self.0))
+        deserializer.deserialize_any(self)
     }
 }

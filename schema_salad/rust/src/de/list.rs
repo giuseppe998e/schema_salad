@@ -1,14 +1,14 @@
 use std::{fmt, marker::PhantomData};
 
-use serde::{
-    __private::de as de_private,
-    de::{self, DeserializeSeed},
+use serde::{__private::de as de_private, de};
+
+use crate::{
+    core::List,
+    de::{IntoDeserializeSeed, SeedData},
 };
 
-use crate::de::{IntoDeserializeSeed, SeedData};
-
-// Default logic for deserialization of `Box<[T]>`
-impl<'de, 'sd, T> IntoDeserializeSeed<'de, 'sd> for Box<[T]>
+// Default logic for deserialization of `crate::core::List<T>`
+impl<'de, 'sd, T> IntoDeserializeSeed<'de, 'sd> for List<T>
 where
     T: IntoDeserializeSeed<'de, 'sd>,
 {
@@ -34,7 +34,7 @@ impl<'de, 'sd, T> de::DeserializeSeed<'de> for OneOrMoreDeserializeSeed<'sd, T>
 where
     T: IntoDeserializeSeed<'de, 'sd>,
 {
-    type Value = Box<[T]>;
+    type Value = List<T>;
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
     where
@@ -49,7 +49,7 @@ where
         where
             T: IntoDeserializeSeed<'de, 'sd>,
         {
-            type Value = Box<[T]>;
+            type Value = List<T>;
 
             fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
                 f.write_str("one or a sequence of objects")
@@ -61,7 +61,7 @@ where
             {
                 let deserializer = de::value::MapAccessDeserializer::new(map);
                 let dseed = T::into_dseed(self.data);
-                let entry = dseed.deserialize(deserializer)?;
+                let entry = de::DeserializeSeed::deserialize(dseed, deserializer)?;
                 Ok(Box::new([entry]))
             }
 
@@ -125,7 +125,7 @@ impl<'de, 'sd, T> de::DeserializeSeed<'de> for MapOrSeqDeserializeSeed<'sd, T>
 where
     T: IntoDeserializeSeed<'de, 'sd>,
 {
-    type Value = Box<[T]>;
+    type Value = List<T>;
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
     where
@@ -142,7 +142,7 @@ where
         where
             T: IntoDeserializeSeed<'de, 's>,
         {
-            type Value = Box<[T]>;
+            type Value = List<T>;
 
             fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
                 f.write_str("a sequence or map of objects")
@@ -179,8 +179,8 @@ where
                     let entry = {
                         let content = de_private::Content::Map(map);
                         let deserializer = de_private::ContentDeserializer::new(content);
-                        let entry_seed = T::into_dseed(self.data);
-                        entry_seed.deserialize(deserializer)?
+                        let entry_dseed = T::into_dseed(self.data);
+                        de::DeserializeSeed::deserialize(entry_dseed, deserializer)?
                     };
 
                     entries.push(entry);
