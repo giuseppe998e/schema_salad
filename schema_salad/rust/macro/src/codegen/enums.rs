@@ -114,8 +114,8 @@ mod tuples {
             };
 
             let variant_ty_ident = variant_ty.to_variant_ident().to_string();
-            match variant_ty_ident.as_str() {
-                "StrValue" => quote! {
+            let custom_from_impl = match variant_ty_ident.as_str() {
+                "StrValue" => Some(quote! {
                     #[automatically_derived]
                     impl _std::convert::From<&str> for self::#ident {
                         fn from(value: &str) -> Self {
@@ -124,27 +124,62 @@ mod tuples {
                             )
                         }
                     }
-                },
-                "BoxStrValueSlice" => quote! {
+
+                    #[automatically_derived]
+                    impl _std::convert::From<String> for self::#ident {
+                        fn from(value: String) -> Self {
+                            self::#ident::#variant_ident(
+                                _std::convert::Into::into(value)
+                            )
+                        }
+                    }
+                }),
+                "ListStrValue" => Some(quote! {
                     #[automatically_derived]
                     impl _std::convert::From<&[&str]> for self::#ident {
                         fn from(value: &[&str]) -> Self {
                             let box_slice = value
                                     .iter()
                                     .map(|s| _std::convert::Into::into(*s))
-                                    .collect::<Box<[_]>>();
+                                    .collect::<crate::core::List<_>>();
                             self::#ident::#variant_ident(box_slice)
                         }
                     }
-                },
-                _ => quote! {
+
                     #[automatically_derived]
-                    impl _std::convert::From<#variant_ty> for self::#ident {
-                        fn from(value: #variant_ty) -> Self {
-                            self::#ident::#variant_ident(value)
+                    impl _std::convert::From<&[String]> for self::#ident {
+                        fn from(value: &[String]) -> Self {
+                            let box_slice = value
+                                    .iter()
+                                    .map(_std::convert::Into::into)
+                                    .collect::<crate::core::List<_>>();
+                            self::#ident::#variant_ident(box_slice)
                         }
                     }
-                },
+
+                    #[automatically_derived]
+                    impl _std::convert::From<Vec<String>> for self::#ident {
+                        fn from(value: Vec<String>) -> Self {
+                            let box_slice = value
+                                    .into_iter()
+                                    .map(std::convert::Into::into)
+                                    .collect::<crate::core::List<_>>();
+                            self::#ident::#variant_ident(box_slice)
+                        }
+                    }
+                }),
+                _ => None,
+            };
+
+            quote! {
+                #[automatically_derived]
+                impl _std::convert::From<#variant_ty> for self::#ident {
+                    fn from(value: #variant_ty) -> Self {
+                        self::#ident::#variant_ident(value)
+                    }
+                }
+
+                #custom_from_impl
             }
         })
     }
@@ -182,12 +217,10 @@ mod tuples {
         let err_string = format!("data did not match any variant of enum `{}`", ident);
 
         let variant_ident_iter = variants.iter().map(|v| &v.ident);
-        let variant_ty_iter = variants
-            .iter()
-            .map(|v| {
-                debug_assert!(v.field.is_some());
-                unsafe { &v.field.as_ref().unwrap_unchecked().ty }
-            });
+        let variant_ty_iter = variants.iter().map(|v| {
+            debug_assert!(v.field.is_some());
+            unsafe { &v.field.as_ref().unwrap_unchecked().ty }
+        });
 
         quote! {
             #[automatically_derived]
@@ -245,12 +278,10 @@ mod tuples {
         let err_string = format!("data did not match any variant of enum `{}`", ident);
 
         let variant_ident_iter = variants.iter().map(|v| &v.ident);
-        let variant_ty_iter = variants
-            .iter()
-            .map(|v| {
-                debug_assert!(v.field.is_some());
-                unsafe { &v.field.as_ref().unwrap_unchecked().ty }
-            });
+        let variant_ty_iter = variants.iter().map(|v| {
+            debug_assert!(v.field.is_some());
+            unsafe { &v.field.as_ref().unwrap_unchecked().ty }
+        });
 
         Some(quote! {
             #[automatically_derived]

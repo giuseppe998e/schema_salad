@@ -1,6 +1,3 @@
-mod string;
-
-pub use self::string::StrValue;
 use crate::core::SaladType;
 
 /// A binary value.

@@ -16,7 +16,6 @@ use crate::core::SaladType;
 pub struct StrValue(CompactString);
 
 impl StrValue {
-    #[inline]
     pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
@@ -25,42 +24,36 @@ impl StrValue {
 impl SaladType for StrValue {}
 
 impl From<&str> for StrValue {
-    #[inline]
     fn from(value: &str) -> Self {
         Self(CompactString::from(value))
     }
 }
 
 impl From<Box<str>> for StrValue {
-    #[inline]
     fn from(value: Box<str>) -> Self {
         Self(CompactString::from(value))
     }
 }
 
 impl From<String> for StrValue {
-    #[inline]
     fn from(value: String) -> Self {
         Self(CompactString::from(value))
     }
 }
 
 impl From<&String> for StrValue {
-    #[inline]
     fn from(value: &String) -> Self {
         Self(CompactString::from(value))
     }
 }
 
 impl AsRef<str> for StrValue {
-    #[inline]
     fn as_ref(&self) -> &str {
         self.0.as_ref()
     }
 }
 
 impl Borrow<str> for StrValue {
-    #[inline]
     fn borrow(&self) -> &str {
         self.0.borrow()
     }
@@ -69,14 +62,12 @@ impl Borrow<str> for StrValue {
 impl Deref for StrValue {
     type Target = str;
 
-    #[inline]
     fn deref(&self) -> &Self::Target {
         self.0.deref()
     }
 }
 
 impl Hash for StrValue {
-    #[inline]
     fn hash<H: hash::Hasher>(&self, state: &mut H) {
         self.0.hash(state);
     }
@@ -85,63 +76,54 @@ impl Hash for StrValue {
 impl Eq for StrValue {}
 
 impl PartialEq<StrValue> for StrValue {
-    #[inline]
     fn eq(&self, other: &StrValue) -> bool {
         self.0 == other.0
     }
 }
 
 impl PartialEq<str> for StrValue {
-    #[inline]
     fn eq(&self, other: &str) -> bool {
         self.0 == other
     }
 }
 
 impl PartialEq<StrValue> for str {
-    #[inline]
     fn eq(&self, other: &StrValue) -> bool {
         other.0 == self
     }
 }
 
 impl<'a> PartialEq<&'a str> for StrValue {
-    #[inline]
     fn eq(&self, other: &&'a str) -> bool {
         self.0 == *other
     }
 }
 
 impl<'a> PartialEq<StrValue> for &'a str {
-    #[inline]
     fn eq(&self, other: &StrValue) -> bool {
         *self == other.0
     }
 }
 
 impl PartialEq<String> for StrValue {
-    #[inline]
     fn eq(&self, other: &String) -> bool {
         self.0 == other
     }
 }
 
 impl PartialEq<StrValue> for String {
-    #[inline]
     fn eq(&self, other: &StrValue) -> bool {
         other.0 == self
     }
 }
 
 impl<'a> PartialEq<&'a String> for StrValue {
-    #[inline]
     fn eq(&self, other: &&'a String) -> bool {
         self.0 == *other
     }
 }
 
 impl<'a> PartialEq<StrValue> for &'a String {
-    #[inline]
     fn eq(&self, other: &StrValue) -> bool {
         *self == &other.0
     }

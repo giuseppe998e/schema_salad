@@ -543,7 +543,7 @@ class ArrayRustType(RustType):
         self.sub_ty = sub_ty
 
     def __str__(self) -> str:
-        return f"std::boxed::Box<[{self.name}]>"
+        return f"crate::core::List<{self.name}>"
 
     @property
     def name(self) -> str:
