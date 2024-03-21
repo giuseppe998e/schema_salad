@@ -12,7 +12,7 @@ use syn::{
 
 pub(crate) use self::attrs::{
     MacroAttributes, SALAD_ATTR_AS_STR, SALAD_ATTR_DEFAULT, SALAD_ATTR_ID, SALAD_ATTR_MAP_KEY,
-    SALAD_ATTR_MAP_PREDICATE, SALAD_ATTR_ROOT,
+    SALAD_ATTR_MAP_PREDICATE, SALAD_ATTR_ROOT, SALAD_ATTR_SUBSCOPE,
 };
 use crate::util::{StrExt, TypeExt};
 

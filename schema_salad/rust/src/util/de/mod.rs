@@ -59,6 +59,18 @@ impl SeedData {
         }
     }
 
+    pub fn push_subscope(&self, subscope: &str) {
+        let mut inner = self.0.borrow_mut();
+        match inner.parent_ids.back().cloned() {
+            Some(mut subscope_id) => {
+                subscope_id.push('/');
+                subscope_id.push_str(subscope);
+                inner.parent_ids.push_back(subscope_id)
+            }
+            None => inner.parent_ids.push_back(CompactString::from(subscope)),
+        }
+    }
+
     pub fn pop_parent_id(&self) {
         let mut inner = self.0.borrow_mut();
         let _ = inner.parent_ids.pop_back();

@@ -841,6 +841,8 @@ class RustCodeGen(CodeGenBase):
                 salad_attrs["map_key"] = map_key
             if (map_predicate := jsonldPred.get("mapPredicate")) is not None:
                 salad_attrs["map_predicate"] = map_predicate
+            if (subscope := jsonldPred.get("subscope")) is not None:
+                salad_attrs["subscope"] = subscope
 
         return StructField(
             name=field.name,

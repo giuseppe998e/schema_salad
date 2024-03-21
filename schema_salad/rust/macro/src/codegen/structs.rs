@@ -165,6 +165,7 @@ mod de {
     use super::*;
     use crate::metadata::{
         PunctuatedFields, StructField, SALAD_ATTR_MAP_KEY, SALAD_ATTR_MAP_PREDICATE,
+        SALAD_ATTR_SUBSCOPE,
     };
 
     fn mandatory_field_iter<'a>(
@@ -230,12 +231,21 @@ mod de {
                     }
                 };
 
+                let (subscope_push, subscope_pop) = match salad_attrs.get_string(SALAD_ATTR_SUBSCOPE)? {
+                    Some(subscope) => (
+                        Some(quote!( self.0.push_subscope(#subscope); )),
+                        Some(quote!( self.0.pop_parent_id(); )),
+                    ),
+                    None => (None, None),
+                };
+
                 Ok(quote! {
                     #literal => {
+                        #subscope_push
                         let value = _serde::de::DeserializeSeed::deserialize(
-                            #seed_expr,
-                            value_deserializer,
+                            #seed_expr, value_deserializer,
                         )?;
+                        #subscope_pop
                         self::#value_ident::#variant_ident(value)
                     }
                 })
@@ -384,9 +394,19 @@ mod de {
                     }
                 };
 
+                let (subscope_push, subscope_pop) = match salad_attrs.get_string(SALAD_ATTR_SUBSCOPE)? {
+                    Some(subscope) => (
+                        Some(quote!( self.0.push_subscope(#subscope); )),
+                        Some(quote!( self.0.pop_parent_id(); )),
+                    ),
+                    None => (None, None),
+                };
+
                 Ok(quote! {
                     #literal => {
+                        #subscope_push
                         let value = map.next_value_seed(#seed_expr)?;
+                        #subscope_pop
                         self::#value_ident::#variant_ident(value)
                     }
                 })

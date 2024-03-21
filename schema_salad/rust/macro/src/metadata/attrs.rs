@@ -12,6 +12,7 @@ pub(crate) const SALAD_ATTR_ID: &'static str = "identifier";
 pub(crate) const SALAD_ATTR_MAP_KEY: &'static str = "map_key";
 pub(crate) const SALAD_ATTR_MAP_PREDICATE: &'static str = "map_predicate";
 pub(crate) const SALAD_ATTR_ROOT: &'static str = "root";
+pub(crate) const SALAD_ATTR_SUBSCOPE: &'static str = "subscope";
 
 #[derive(Clone)]
 pub(crate) struct MacroAttributes {
