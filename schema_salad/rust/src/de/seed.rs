@@ -1,6 +1,7 @@
 use std::{
-    borrow::Borrow, cell::UnsafeCell, collections::HashSet, marker::PhantomData, mem::ManuallyDrop,
-    ptr::NonNull,
+    cell::RefCell,
+    collections::HashSet,
+    marker::PhantomData,
 };
 
 use compact_str::{format_compact, CompactString};
@@ -10,7 +11,8 @@ use crate::core;
 
 /// Data structure that supports deserialization
 /// while retaining state and auxiliary information.
-pub(crate) struct SeedData(UnsafeCell<SeedDataInner>);
+#[derive(Clone)]
+pub(crate) struct SeedData(RefCell<SeedDataInner>);
 
 struct SeedDataInner {
     ids: HashSet<CompactString, FxBuildHasher>,
@@ -19,8 +21,8 @@ struct SeedDataInner {
 
 impl SeedData {
     pub fn new() -> Self {
-        Self(UnsafeCell::new(SeedDataInner {
-            ids: HashSet::with_hasher(FxBuildHasher::default()),
+        Self(RefCell::new(SeedDataInner {
+            ids: HashSet::with_capacity_and_hasher(8, FxBuildHasher::default()),
             parent_ids: Vec::with_capacity(8),
         }))
     }
@@ -30,9 +32,7 @@ impl SeedData {
     // TODO Verify correctness
     // https://www.commonwl.org/v1.2/SchemaSalad.html#Identifier_resolution
     pub fn generate_id(&self, id: CompactString) -> Result<String, String> {
-        // SAFETY The dereferencing of the pointer occurs only here
-        // and no other method exposes the reference externally.
-        let inner = unsafe { &mut *self.0.get() };
+        let mut inner = self.0.borrow_mut();
 
         let (id, parent_id) = match (id.strip_prefix('#'), inner.parent_ids.last()) {
             (Some(sub_id), _) => {
@@ -60,32 +60,25 @@ impl SeedData {
     }
 
     pub fn push_subscope(&self, subscope: &str) {
-        // SAFETY The dereferencing of the pointer occurs only here
-        // and no other method exposes the reference externally.
-        let inner = unsafe { &mut *self.0.get() };
-
+        let mut inner = self.0.borrow_mut();
         match inner.parent_ids.last().cloned() {
-            Some(mut id) => {
-                id.push('/');
-                id.push_str(subscope);
-                inner.parent_ids.push(id)
+            Some(mut subscope_id) => {
+                subscope_id.push('/');
+                subscope_id.push_str(subscope);
+                inner.parent_ids.push(subscope_id)
             }
             None => inner.parent_ids.push(CompactString::from(subscope)),
         }
     }
 
     pub fn pop_parent_id(&self) {
-        // SAFETY The dereferencing of the pointer occurs only here
-        // and no other method exposes the reference externally.
-        let inner = unsafe { &mut *self.0.get() };
+        let mut inner = self.0.borrow_mut();
         let _ = inner.parent_ids.pop();
     }
 
     pub fn extend(&self, other: SeedData) -> Result<(), String> {
-        // SAFETY The dereferencing of the pointer occurs only here
-        // and no other method exposes the reference externally.
-        let inner = unsafe { &mut *self.0.get() };
         let SeedDataInner { ids, .. } = other.0.into_inner();
+        let mut inner = self.0.borrow_mut();
 
         for id in ids.into_iter() {
             if !inner.ids.contains(id.as_str()) {
@@ -99,20 +92,12 @@ impl SeedData {
     }
 }
 
-impl Clone for SeedData {
-    fn clone(&self) -> Self {
-        // SAFETY The dereferencing of the pointer occurs only here
-        // and no other method exposes the reference externally.
-        let inner = unsafe { &mut *self.0.get() };
-        let inner_clone = SeedDataInner::clone(inner);
-        Self(UnsafeCell::new(inner_clone))
-    }
-}
-
 impl Clone for SeedDataInner {
     fn clone(&self) -> Self {
         Self {
+            // Optimization, does not early allocate
             ids: HashSet::with_capacity_and_hasher(0, FxBuildHasher::default()),
+            // Optimized, does not clone vector capacity
             parent_ids: self.parent_ids.clone(),
         }
     }
