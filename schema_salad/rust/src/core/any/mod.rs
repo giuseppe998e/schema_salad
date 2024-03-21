@@ -7,7 +7,7 @@ use serde::{de, ser};
 pub use self::object::Object;
 use crate::{
     core::{Bool, Double, Float, Int, Long, SaladType, StrValue},
-    de::{SeedData, IntoDeserializeSeed},
+    de::{IntoDeserializeSeed, SeedData},
 };
 
 #[derive(Debug, Clone)]

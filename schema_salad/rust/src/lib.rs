@@ -9,4 +9,3 @@ pub type Ref<T> = std::sync::Arc<T>;
 pub type Ref<T> = std::rc::Rc<T>;
 
 // Generated code
-
