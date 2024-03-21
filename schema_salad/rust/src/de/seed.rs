@@ -93,7 +93,7 @@ impl SeedData {
 impl Clone for SeedDataInner {
     fn clone(&self) -> Self {
         Self {
-            ids: HashSet::with_hasher(FxBuildHasher::default()),
+            ids: HashSet::with_capacity_and_hasher(0, FxBuildHasher::default()),
             parent_ids: self.parent_ids.clone(),
         }
     }
