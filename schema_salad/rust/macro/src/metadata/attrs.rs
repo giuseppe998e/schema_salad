@@ -48,7 +48,7 @@ impl TryFrom<&mut Vec<Attribute>> for MacroAttributes {
     type Error = syn::Error;
 
     fn try_from(attrs: &mut Vec<Attribute>) -> Result<Self, Self::Error> {
-        let mut map = HashMap::default();
+        let mut map = HashMap::with_capacity_and_hasher(2, FxBuildHasher::default());
 
         while let Some(idx) = attrs.iter().position(|a| a.path().is_ident("salad")) {
             let attr = attrs.remove(idx);
@@ -56,8 +56,7 @@ impl TryFrom<&mut Vec<Attribute>> for MacroAttributes {
                 return Err(syn::Error::new(attr.span(), "Attribute syntax error."));
             };
 
-            let metas = list.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)?;
-            for meta in metas {
+            for meta in list.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)? {
                 let key = tryfrom_util::get_key(&meta)?;
                 let value = tryfrom_util::get_value(meta)?;
                 map.insert(key, value);

@@ -60,7 +60,7 @@ impl TryFrom<DeriveInput> for InputStruct {
 
     fn try_from(value: DeriveInput) -> Result<Self, Self::Error> {
         let DeriveInput {
-            attrs,
+            mut attrs,
             vis,
             ident,
             generics,
@@ -71,31 +71,26 @@ impl TryFrom<DeriveInput> for InputStruct {
             return Err(syn::Error::new(ident.span(), "Generics are not supported."));
         }
 
-        let mut attrs = attrs;
         let salad_attrs = MacroAttributes::try_from(&mut attrs)?;
 
-        let fields = {
-            let fields = match data {
-                Data::Struct(DataStruct {
-                    fields: Fields::Named(FieldsNamed { named, .. }),
-                    ..
-                }) => named,
-                Data::Struct(DataStruct {
-                    fields: Fields::Unnamed(..),
-                    ..
-                }) => {
-                    return Err(syn::Error::new(
-                        ident.span(),
-                        "Unnamed fields structs are not supported.",
-                    ))
-                }
-                _ => unreachable!(),
-            };
-
-            fields
+        let fields = match data {
+            Data::Struct(DataStruct {
+                fields: Fields::Named(FieldsNamed { named, .. }),
+                ..
+            }) => named
                 .into_iter()
                 .map(StructField::try_from)
-                .collect::<syn::Result<Punctuated<_, Token![,]>>>()?
+                .collect::<syn::Result<Punctuated<_, Token![,]>>>()?,
+            Data::Struct(DataStruct {
+                fields: Fields::Unnamed(..),
+                ..
+            }) => {
+                return Err(syn::Error::new(
+                    ident.span(),
+                    "Unnamed fields structs are not supported.",
+                ))
+            }
+            _ => unreachable!(),
         };
 
         let seed_ident = format_ident!("__{}Seed", &ident);
@@ -129,7 +124,7 @@ impl TryFrom<Field> for StructField {
 
     fn try_from(value: Field) -> Result<Self, Self::Error> {
         let Field {
-            attrs,
+            mut attrs,
             vis,
             ident,
             ty,
@@ -143,7 +138,6 @@ impl TryFrom<Field> for StructField {
             ));
         };
 
-        let mut attrs = attrs;
         let salad_attrs = MacroAttributes::try_from(&mut attrs)?;
 
         let (ident, literal) = {
@@ -199,7 +193,7 @@ impl TryFrom<DeriveInput> for InputEnum {
 
     fn try_from(value: DeriveInput) -> Result<Self, Self::Error> {
         let DeriveInput {
-            attrs,
+            mut attrs,
             vis,
             ident,
             generics,
@@ -211,19 +205,14 @@ impl TryFrom<DeriveInput> for InputEnum {
             return Err(syn::Error::new(ident.span(), "Generics are not supported."));
         }
 
-        let mut attrs = attrs;
         let salad_attrs = MacroAttributes::try_from(&mut attrs)?;
 
-        let variants = {
-            let variants = match data {
-                Data::Enum(DataEnum { variants, .. }) => variants,
-                _ => unreachable!(),
-            };
-
-            variants
+        let variants = match data {
+            Data::Enum(DataEnum { variants, .. }) => variants
                 .into_iter()
                 .map(EnumVariant::try_from)
-                .collect::<syn::Result<Punctuated<_, Token![,]>>>()?
+                .collect::<syn::Result<Punctuated<_, Token![,]>>>()?,
+            _ => unreachable!(),
         };
 
         let seed_ident = format_ident!("__{}Seed", &ident);
@@ -253,13 +242,12 @@ impl TryFrom<Variant> for EnumVariant {
 
     fn try_from(value: Variant) -> Result<Self, Self::Error> {
         let Variant {
-            attrs,
+            mut attrs,
             ident,
             fields,
             ..
         } = value;
 
-        let mut attrs = attrs;
         let salad_attrs = MacroAttributes::try_from(&mut attrs)?;
 
         let field = match fields {
@@ -316,10 +304,12 @@ impl TryFrom<DeriveInput> for InputUnit {
 
     fn try_from(value: DeriveInput) -> Result<Self, Self::Error> {
         let DeriveInput {
-            attrs, vis, ident, ..
+            mut attrs,
+            vis,
+            ident,
+            ..
         } = value;
 
-        let mut attrs = attrs;
         let salad_attrs = MacroAttributes::try_from(&mut attrs)?;
 
         return Ok(Self {
