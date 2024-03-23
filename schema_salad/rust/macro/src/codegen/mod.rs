@@ -30,7 +30,7 @@ fn generate_root_de_impl(
                 where
                     D: _serde::de::Deserializer<'_de>
                 {
-                    let data = crate::de::SeedData::new();
+                    let data = crate::__private::de::SeedData::new();
                     let seed = self::#seed_ident(&data);
                     _serde::de::DeserializeSeed::deserialize(seed, deserializer)
                 }

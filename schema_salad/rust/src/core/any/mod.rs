@@ -6,8 +6,8 @@ use serde::{de, ser};
 
 pub use self::object::Object;
 use crate::{
+    __private::de::{IntoDeserializeSeed, SeedData},
     core::{Bool, Double, Float, Int, List, Long, SaladType, StrValue},
-    de::{IntoDeserializeSeed, SeedData},
 };
 
 #[derive(Debug, Clone)]

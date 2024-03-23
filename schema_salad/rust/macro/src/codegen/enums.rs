@@ -70,7 +70,7 @@ mod tuples {
             }
 
             #[doc(hidden)]
-            pub(crate) struct #seed_ident<'_sd>(&'_sd crate::de::SeedData);
+            pub(crate) struct #seed_ident<'_sd>(&'_sd crate::__private::de::SeedData);
 
             #[doc(hidden)]
             const _: () = {
@@ -85,11 +85,11 @@ mod tuples {
                 #serialize_impl
 
                 #[automatically_derived]
-                impl<'_de, '_sd> crate::de::IntoDeserializeSeed<'_de, '_sd> for self::#ident {
+                impl<'_de, '_sd> crate::__private::de::IntoDeserializeSeed<'_de, '_sd> for self::#ident {
                     type Value = self::#seed_ident<'_sd>;
 
                     #[inline]
-                    fn into_dseed(data: &'_sd crate::de::SeedData) -> Self::Value {
+                    fn into_dseed(data: &'_sd crate::__private::de::SeedData) -> Self::Value {
                         self::#seed_ident(data)
                     }
                 }
@@ -242,7 +242,7 @@ mod tuples {
                         {
                             let data = self.0.clone();
                             let deserialize_seed =
-                                <#variant_ty_iter as crate::de::IntoDeserializeSeed>::into_dseed(
+                                <#variant_ty_iter as crate::__private::de::IntoDeserializeSeed>::into_dseed(
                                     &data
                                 );
 
@@ -299,9 +299,9 @@ mod tuples {
 
                     #(
                         {
-                            let data = crate::de::SeedData::new();
+                            let data = crate::__private::de::SeedData::new();
                             let deserialize_seed =
-                                <#variant_ty_iter as crate::de::IntoDeserializeSeed>::into_dseed(
+                                <#variant_ty_iter as crate::__private::de::IntoDeserializeSeed>::into_dseed(
                                     &data
                                 );
 
@@ -409,11 +409,11 @@ mod units {
                 }
 
                 #[automatically_derived]
-                impl<'_de, '_sd> crate::de::IntoDeserializeSeed<'_de, '_sd> for self::#ident {
+                impl<'_de, '_sd> crate::__private::de::IntoDeserializeSeed<'_de, '_sd> for self::#ident {
                     type Value = _std::marker::PhantomData<Self>;
 
                     #[inline]
-                    fn into_dseed(_: &'_sd crate::de::SeedData) -> Self::Value {
+                    fn into_dseed(_: &'_sd crate::__private::de::SeedData) -> Self::Value {
                         _std::marker::PhantomData
                     }
                 }

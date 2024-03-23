@@ -3,8 +3,8 @@ use std::{fmt, marker::PhantomData};
 use serde::{__private::de as de_private, de};
 
 use crate::{
+    __private::de::{IntoDeserializeSeed, SeedData},
     core::List,
-    de::{IntoDeserializeSeed, SeedData},
 };
 
 // Default logic for deserialization of `crate::core::List<T>`

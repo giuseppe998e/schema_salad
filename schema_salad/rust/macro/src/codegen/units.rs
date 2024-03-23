@@ -74,11 +74,11 @@ pub(super) fn generate_unit(input: InputUnit) -> syn::Result<TokenStream2> {
             }
 
             #[automatically_derived]
-            impl<'_de, '_sd> crate::de::IntoDeserializeSeed<'_de, '_sd> for self::#ident {
+            impl<'_de, '_sd> crate::__private::de::IntoDeserializeSeed<'_de, '_sd> for self::#ident {
                 type Value = _std::marker::PhantomData<Self>;
 
                 #[inline]
-                fn into_dseed(_: &'_sd crate::de::SeedData) -> Self::Value {
+                fn into_dseed(_: &'_sd crate::__private::de::SeedData) -> Self::Value {
                     _std::marker::PhantomData
                 }
             }

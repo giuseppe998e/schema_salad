@@ -5,8 +5,8 @@ use fxhash::FxBuildHasher;
 use serde::{de, ser};
 
 use crate::{
+    __private::de::{IntoDeserializeSeed, SeedData},
     core::{Any, SaladType},
-    de::{IntoDeserializeSeed, SeedData},
 };
 
 #[derive(Debug, Clone)]
