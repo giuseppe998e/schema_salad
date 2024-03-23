@@ -214,7 +214,7 @@ mod de {
                     Some(quote! {
                         if !struct_map.contains_key(#literal) {
                             let key = _compact_str::CompactString::from(#literal);
-                            let value = match #ty::try_from(#value) {
+                            let value = match <#ty as _std::str::FromStr>::from_str(#value) {
                                 Ok(v) => self::#value_ident::#variant_ident(v),
                                 Err(_) => {
                                     debug_assert!(false, #error_str);
