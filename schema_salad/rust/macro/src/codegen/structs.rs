@@ -3,7 +3,7 @@ use quote::quote;
 
 use super::generate_root_de_impl;
 use crate::{
-    metadata::{InputStruct, SALAD_ATTR_ID},
+    metadata::{InputStruct, SALAD_ATTR_DEFAULT, SALAD_ATTR_ID},
     util::TypeExt,
 };
 
@@ -19,7 +19,7 @@ pub(super) fn generate_struct(input: InputStruct) -> syn::Result<TokenStream2> {
         ..
     } = &input;
 
-    let struct_getters = getters::generate_impl(&input);
+    let struct_getters = getters::generate_impl(&input)?;
     let value_enum = value::generate_enum(&input);
     let value_debug_impl = value::generate_debug_impl(&input);
     let value_ser_impl = value::generate_ser_impl(&input);
@@ -57,6 +57,7 @@ pub(super) fn generate_struct(input: InputStruct) -> syn::Result<TokenStream2> {
             extern crate serde as _serde;
             extern crate std as _std;
 
+            #[automatically_derived]
             impl crate::core::SaladType for self::#ident {}
 
             #struct_getters
@@ -92,49 +93,58 @@ pub(super) fn generate_struct(input: InputStruct) -> syn::Result<TokenStream2> {
 mod getters {
     use super::*;
 
-    pub(super) fn generate_impl(input: &InputStruct) -> TokenStream2 {
+    pub(super) fn generate_impl(input: &InputStruct) -> syn::Result<TokenStream2> {
         let InputStruct {
+            salad_attrs,
             ident,
             fields,
             value_ident,
             ..
         } = &input;
 
+        let method_ident = fields.iter().map(|f| &f.ident);
         let method_docs = fields.iter().map(|f| {
             let docs = f.attrs.iter().filter(|a| a.path().is_ident("doc"));
             quote! ( #( #docs )* )
         });
-        let method_ident = fields.iter().map(|f| &f.ident);
-        let method_return = fields.iter().map(|f| f.ty.clone().into_typeref());
-        let field_literal = fields.iter().map(|f| &f.literal);
+        let method_return = fields.iter().map(|f| {
+            if salad_attrs.contains(SALAD_ATTR_DEFAULT) {
+                let ty = f.ty.sub_type(Some("Option")).unwrap_or(&f.ty).clone();
+                ty.into_typeref()
+            } else {
+                f.ty.clone().into_typeref()
+            }
+        });
 
+        let field_literal = fields.iter().map(|f| &f.literal);
         let field_matches = fields.iter().map(|f| {
             let value_variant = &f.variant_ident;
-            let (ty, is_option) = {
+            let (ty, optional) = {
                 let ty = f.ty.sub_type(Some("Option"));
                 (ty.unwrap_or(&f.ty), ty.is_some())
             };
-            let is_primitive = ty.is_salad_primitive();
+            let primitive = ty.is_salad_primitive();
+            let has_attr_default = salad_attrs.contains(SALAD_ATTR_DEFAULT);
 
-            match (is_option, is_primitive) {
-                (false, false) => {
+            match (optional, primitive, has_attr_default) {
+                (true, false, true) | (false, false, _) => {
                     quote!( Some(self::#value_ident::#value_variant(v)) => v, )
                 }
-                (false, true) => {
+                (true, true, true) | (false, true, _) => {
                     quote!( Some(self::#value_ident::#value_variant(v)) => *v, )
                 }
-                (true, false) => quote! {
+                (true, false, false) => quote! {
                     Some(self::#value_ident::#value_variant(v)) => Some(v),
                     None => None,
                 },
-                (true, true) => quote! {
+                (true, true, false) => quote! {
                     Some(self::#value_ident::#value_variant(v)) => Some(*v),
                     None => None,
                 },
             }
         });
 
-        quote! {
+        Ok(quote! {
             #[automatically_derived]
             impl self::#ident {
                 #(
@@ -160,32 +170,80 @@ mod getters {
                     }
                 }
             }
-        }
+        })
     }
 }
 
 mod de {
+    use syn::Lit;
+
     use super::*;
     use crate::metadata::{
-        PunctuatedFields, StructField, SALAD_ATTR_MAP_KEY, SALAD_ATTR_MAP_PREDICATE,
-        SALAD_ATTR_SUBSCOPE,
+        StructField, SALAD_ATTR_MAP_KEY, SALAD_ATTR_MAP_PREDICATE, SALAD_ATTR_SUBSCOPE,
     };
 
-    fn mandatory_field_iter<'a>(
-        fields: &'a PunctuatedFields,
-    ) -> impl Iterator<Item = Option<TokenStream2>> + 'a {
-        fields.iter().filter_map(|f| {
-            f.ty.sub_type(Some("Option")).is_none().then(|| {
-                let literal = &f.literal;
-                let null_err_str = format!("the field `{literal}` is null");
+    fn check_field_value_iter<'a>(
+        input: &'a InputStruct,
+    ) -> impl Iterator<Item = TokenStream2> + 'a {
+        let InputStruct {
+            fields,
+            value_ident,
+            ..
+        } = &input;
 
-                Some(quote! {
-                    match struct_map.get(#literal) {
-                        Some(_) => (),
-                        None => return Err(_serde::de::Error::custom(#null_err_str)),
-                    };
-                })
-            })
+        fields.iter().filter_map(move |f| {
+            let StructField {
+                salad_attrs,
+                ty,
+                literal,
+                variant_ident,
+                ..
+            } = f;
+
+            let default_value = salad_attrs.get(SALAD_ATTR_DEFAULT);
+            let (mandatory, ty) = {
+                let subty = ty.sub_type(Some("Option"));
+                (subty.is_none(), subty.unwrap_or(ty))
+            };
+
+            match (mandatory, default_value) {
+                (_, Some(Lit::Str(value))) => {
+                    let error_str =
+                        format!("the field `{literal}` can not set to `{}`", value.value());
+
+                    Some(quote! {
+                        if !struct_map.contains_key(#literal) {
+                            let key = _compact_str::CompactString::from(#literal);
+                            let value = match #ty::try_from(#value) {
+                                Ok(v) => self::#value_ident::#variant_ident(v),
+                                Err(_) => {
+                                    debug_assert!(false, #error_str);
+                                    unsafe { _std::hint::unreachable_unchecked() }
+                                }
+                            };
+
+                            struct_map.insert(key, value);
+                        }
+                    })
+                }
+                (_, Some(value)) => Some(quote! {
+                    if !struct_map.contains_key(#literal) {
+                        let key = _compact_str::CompactString::from(#literal);
+                        let value = self::#value_ident::#variant_ident(#ty::from(#value));
+                        struct_map.insert(key, value);
+                    }
+                }),
+                (true, None) => {
+                    let error_str = format!("the field `{literal}` is null");
+
+                    Some(quote! {
+                        if !struct_map.contains_key(#literal) {
+                            return Err(_serde::de::Error::custom(#error_str));
+                        }
+                    })
+                }
+                (false, None) => None,
+            }
         })
     }
 
@@ -206,7 +264,7 @@ mod de {
         let expected_str = format!("a valid `{ident}` object");
 
         let id_field_literal = &id_field.literal;
-        let mandatory_fields = mandatory_field_iter(fields);
+        let mandatory_fields = check_field_value_iter(input);
         let match_fields = fields
             .iter()
             .map(|f| {
@@ -337,10 +395,10 @@ mod de {
                                     struct_map.insert(key, value);
                                 }
 
+                                #( #mandatory_fields )*
+
                                 struct_map
                             };
-
-                            #( #mandatory_fields )*
 
                             if is_id_declared {
                                 self.0.pop_parent_id();
@@ -369,7 +427,7 @@ mod de {
         let fields_count = fields.len();
         let expected_str = format!("a valid `{ident}` object");
 
-        let mandatory_fields = mandatory_field_iter(fields);
+        let mandatory_fields = check_field_value_iter(input);
         let match_fields = fields
             .iter()
             .map(|f| {
@@ -438,34 +496,30 @@ mod de {
                         where
                             A: _serde::de::MapAccess<'_de>,
                         {
-                            let struct_map = {
-                                use crate::__private::de::IntoDeserializeSeed;
+                            use crate::__private::de::IntoDeserializeSeed;
 
-                                let mut struct_map = _std::collections::HashMap::with_capacity_and_hasher(
-                                    #fields_count, _fxhash::FxBuildHasher::default()
-                                );
+                            let mut struct_map = _std::collections::HashMap::with_capacity_and_hasher(
+                                #fields_count, _fxhash::FxBuildHasher::default()
+                            );
 
-                                while let Some(key) = map.next_key::<_compact_str::CompactString>()? {
-                                    if struct_map.contains_key(&key) {
-                                        return Err(_serde::de::Error::custom(format_args!(
-                                            "duplicate field `{}`",
-                                            &key
-                                        )));
-                                    }
-
-                                    let value = match key.as_str() {
-                                        #( #match_fields )*
-                                        _ => {
-                                            let value = map.next_value_seed(crate::core::Any::into_dseed(self.0))?;
-                                            self::#value_ident::Any(value)
-                                        }
-                                    };
-
-                                    struct_map.insert(key, value);
+                            while let Some(key) = map.next_key::<_compact_str::CompactString>()? {
+                                if struct_map.contains_key(&key) {
+                                    return Err(_serde::de::Error::custom(format_args!(
+                                        "duplicate field `{}`",
+                                        &key
+                                    )));
                                 }
 
-                                struct_map
-                            };
+                                let value = match key.as_str() {
+                                    #( #match_fields )*
+                                    _ => {
+                                        let value = map.next_value_seed(crate::core::Any::into_dseed(self.0))?;
+                                        self::#value_ident::Any(value)
+                                    }
+                                };
+
+                                struct_map.insert(key, value);
+                            }
 
                             #( #mandatory_fields )*
 

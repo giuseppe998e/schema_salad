@@ -20,6 +20,10 @@ pub(crate) struct MacroAttributes {
 }
 
 impl MacroAttributes {
+    pub fn contains(&self, key: &str) -> bool {
+        self.map.contains_key(key)
+    }
+
     pub fn contains_and_is_true(&self, key: &str) -> bool {
         match self.map.get(key) {
             Some(Lit::Bool(LitBool { value, .. })) => *value,

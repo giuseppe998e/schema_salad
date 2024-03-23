@@ -831,8 +831,11 @@ class RustCodeGen(CodeGenBase):
 
         # Parse struct field
         salad_attrs: Dict[str, Any] = {}
-        jsonldPred = field.get_prop("jsonldPredicate")
 
+        if field.get_prop("default") is not None:
+            salad_attrs["default"] = field.default
+
+        jsonldPred = field.get_prop("jsonldPredicate")
         if isinstance(jsonldPred, str):
             if jsonldPred == "@id":
                 salad_attrs["identifier"] = None
