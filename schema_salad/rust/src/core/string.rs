@@ -1,9 +1,4 @@
-use std::{
-    borrow::Borrow,
-    fmt,
-    hash::{self, Hash},
-    ops::Deref,
-};
+use std::{borrow::Borrow, fmt, hash, ops};
 
 use compact_str::CompactString;
 use serde::{de, ser};
@@ -56,20 +51,6 @@ impl AsRef<str> for StrValue {
 impl Borrow<str> for StrValue {
     fn borrow(&self) -> &str {
         self.0.borrow()
-    }
-}
-
-impl Deref for StrValue {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        self.0.deref()
-    }
-}
-
-impl Hash for StrValue {
-    fn hash<H: hash::Hasher>(&self, state: &mut H) {
-        self.0.hash(state);
     }
 }
 
@@ -126,6 +107,20 @@ impl<'a> PartialEq<&'a String> for StrValue {
 impl<'a> PartialEq<StrValue> for &'a String {
     fn eq(&self, other: &StrValue) -> bool {
         *self == &other.0
+    }
+}
+
+impl hash::Hash for StrValue {
+    fn hash<H: hash::Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+
+impl ops::Deref for StrValue {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.deref()
     }
 }
 
