@@ -35,7 +35,10 @@ impl Parse for MacroInput {
             }
             Data::Struct(_) => InputStruct::try_from(input).map(Self::Struct),
             Data::Enum(_) => InputEnum::try_from(input).map(Self::Enum),
-            Data::Union(_) => Err(syn::Error::new(input.span(), "unions are not supported.")),
+            Data::Union(_) => Err(syn::Error::new(
+                input.span(),
+                "Union type is not supported.",
+            )),
         }
     }
 }
@@ -65,7 +68,7 @@ impl TryFrom<DeriveInput> for InputStruct {
         } = value;
 
         if !generics.params.is_empty() {
-            return Err(syn::Error::new(ident.span(), "generics are not supported."));
+            return Err(syn::Error::new(ident.span(), "Generics are not supported."));
         }
 
         let mut attrs = attrs;
@@ -83,7 +86,7 @@ impl TryFrom<DeriveInput> for InputStruct {
                 }) => {
                     return Err(syn::Error::new(
                         ident.span(),
-                        "unnamed fields structs are not supported.",
+                        "Unnamed fields structs are not supported.",
                     ))
                 }
                 _ => unreachable!(),
@@ -136,7 +139,7 @@ impl TryFrom<Field> for StructField {
         let Some(ident) = ident else {
             return Err(syn::Error::new(
                 ty.span(),
-                "unnamed fields are not supported.",
+                "Unnamed fields are not supported.",
             ));
         };
 
@@ -205,7 +208,7 @@ impl TryFrom<DeriveInput> for InputEnum {
         } = value;
 
         if !generics.params.is_empty() {
-            return Err(syn::Error::new(ident.span(), "generics are not supported."));
+            return Err(syn::Error::new(ident.span(), "Generics are not supported."));
         }
 
         let mut attrs = attrs;
@@ -267,13 +270,13 @@ impl TryFrom<Variant> for EnumVariant {
             Fields::Unnamed(_) => {
                 return Err(syn::Error::new(
                     ident.span(),
-                    "multiple unnamed-field variant is not supported.",
+                    "Multiple unnamed-field variant is not supported.",
                 ))
             }
             Fields::Named(_) => {
                 return Err(syn::Error::new(
                     ident.span(),
-                    "named-field variant is not supported.",
+                    "Named-field variant is not supported.",
                 ))
             }
         };

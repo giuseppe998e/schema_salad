@@ -38,7 +38,7 @@ impl MacroAttributes {
     pub fn get_string(&self, key: &str) -> syn::Result<Option<&LitStr>> {
         match self.map.get(key) {
             Some(Lit::Str(s)) => Ok(Some(s)),
-            Some(lit) => Err(syn::Error::new(lit.span(), "a string value was expected")),
+            Some(lit) => Err(syn::Error::new(lit.span(), "A string value was expected.")),
             _ => Ok(None),
         }
     }
@@ -53,7 +53,7 @@ impl TryFrom<&mut Vec<Attribute>> for MacroAttributes {
         while let Some(idx) = attrs.iter().position(|a| a.path().is_ident("salad")) {
             let attr = attrs.remove(idx);
             let Meta::List(list) = attr.meta else {
-                return Err(syn::Error::new(attr.span(), "attribute syntax error"));
+                return Err(syn::Error::new(attr.span(), "Attribute syntax error."));
             };
 
             let metas = list.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)?;
@@ -77,7 +77,7 @@ mod tryfrom_util {
             Some(k) => Ok(k),
             None => Err(syn::Error::new(
                 meta.span(),
-                "only named arguments are allowed",
+                "Named arguments only are allowed.",
             )),
         }
     }
@@ -94,7 +94,7 @@ mod tryfrom_util {
             }) => Ok(lit),
             _ => Err(syn::Error::new(
                 meta.span(),
-                "only `name` or `name-value` arguments are allowed",
+                "List-type arguments are not supported.",
             )),
         }
     }

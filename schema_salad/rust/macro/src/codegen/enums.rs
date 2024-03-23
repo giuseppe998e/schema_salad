@@ -39,7 +39,7 @@ pub(super) fn generate_enum(input: InputEnum) -> syn::Result<TokenStream2> {
         )),
         _ => Err(syn::Error::new(
             ident.span(),
-            "Enum without variants is not supported",
+            "Enum without variants is not supported.",
         )),
     }
 }
