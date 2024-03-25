@@ -3,8 +3,14 @@
 
 pub(crate) mod de;
 
+// DSL Preproccessor feature
+#[cfg(feature = "dsl")]
+pub(crate) mod dsl;
+
+// Reference counter feature (ON)
 #[cfg(feature = "arc")]
 pub type Ref<T> = std::sync::Arc<T>;
 
+// Reference counter feature (OFF)
 #[cfg(not(feature = "arc"))]
 pub type Ref<T> = std::rc::Rc<T>;

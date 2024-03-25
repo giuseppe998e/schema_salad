@@ -31,8 +31,12 @@ fn generate_root_de_impl(
                     D: _serde::de::Deserializer<'_de>
                 {
                     let data = crate::__private::de::SeedData::new();
-                    let seed = self::#seed_ident(&data);
-                    _serde::de::DeserializeSeed::deserialize(seed, deserializer)
+                    let dseed = self::#seed_ident(&data);
+
+                    #[cfg(feature = "dsl")]
+                    let deserializer = crate::__private::dsl::Preprocessor::new(deserializer);
+
+                    _serde::de::DeserializeSeed::deserialize(dseed, deserializer)
                 }
             }
         })

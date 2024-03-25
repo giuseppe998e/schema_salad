@@ -290,10 +290,13 @@ mod tuples {
                 where
                     D: _serde::de::Deserializer<'_de>
                 {
+                    #[cfg(feature = "dsl")]
+                    let deserializer = crate::__private::dsl::Preprocessor::new(deserializer);
+
                     let content =
-                    <_serde::__private::de::Content<'_de> as _serde::Deserialize>::deserialize(
-                        deserializer,
-                    )?;
+                        <_serde::__private::de::Content<'_de> as _serde::Deserialize>::deserialize(
+                            deserializer,
+                        )?;
                     let content_deserializer =
                         _serde::__private::de::ContentRefDeserializer::<D::Error>::new(&content);
 

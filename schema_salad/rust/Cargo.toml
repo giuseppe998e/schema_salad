@@ -3,15 +3,28 @@ name = "{package_name}"
 version = "{package_version}"
 authors = [ "Giuseppe Eletto <giuseppe@eletto.me>" ]
 license = "Apache-2.0"
-rust-version = "1.66.1"
+rust-version = "1.72.1"
 publish = false
 edition = "2021"
 
 [features]
+# Reference counter
 arc = []
+
+# DSL Preprocessor
+dsl = []
+dsl_full = ["dsl", "dsl_http", "dsl_json", "dsl_yaml"]
+dsl_http = ["dsl", "dep:ehttp"]
+dsl_json = ["dsl", "dep:serde_json"]
+dsl_yaml = ["dsl", "dep:serde_yaml"]
 
 [dependencies]
 compact_str = { version = "0.7", features = [ "serde" ] }
 fxhash = "0.2"
 schema_salad-macro = { path = "./macro" }
 serde = "1.0"
+
+# DSL Preprocessor dependencies
+ehttp = { version = "0.5", optional = true }
+serde_json = { version = "1.0", optional = true }
+serde_yaml = { version = "0.9", optional = true }
