@@ -100,7 +100,6 @@ mod tuples {
         }
     }
 
-    // TODO Fix "From" generation in case of "Box<[...]>"
     fn generate_from_impls<'i>(input: &'i InputEnum) -> impl Iterator<Item = TokenStream2> + 'i {
         let InputEnum {
             ident, variants, ..

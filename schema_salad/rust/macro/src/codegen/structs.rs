@@ -153,7 +153,6 @@ mod getters {
                         match self.0.get(#field_literal) {
                             #field_matches
                             // TODO Must be rechecked when doing the builder
-                            // TODO To be bench against unreachable macro
                             _ => {
                                 debug_assert!(false, "The struct field has wrong type/is None.");
                                 unsafe { _std::hint::unreachable_unchecked() }
