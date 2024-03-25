@@ -283,10 +283,10 @@ mod de {
 
                     match (map_key, map_predicate) {
                         (Some(key), None) => {
-                            quote!( crate::__private::de::list::MapOrSeqDeserializeSeed::new(#key, None, self.0) )
+                            quote!( crate::__private::de::MapOrSeqDeserializeSeed::new(#key, None, self.0) )
                         }
                         (Some(key), Some(pred)) => {
-                            quote!( crate::__private::de::list::MapOrSeqDeserializeSeed::new(#key, Some(#pred), self.0) )
+                            quote!( crate::__private::de::MapOrSeqDeserializeSeed::new(#key, Some(#pred), self.0) )
                         }
                         _ => quote!( <#ty>::into_dseed(self.0) ),
                     }
@@ -446,10 +446,10 @@ mod de {
 
                     match (map_key, map_predicate) {
                         (Some(key), None) => {
-                            quote!( crate::__private::de::list::MapOrSeqDeserializeSeed::new(#key, None, self.0) )
+                            quote!( crate::__private::de::MapOrSeqDeserializeSeed::new(#key, None, self.0) )
                         }
                         (Some(key), Some(pred)) => {
-                            quote!( crate::__private::de::list::MapOrSeqDeserializeSeed::new(#key, Some(#pred), self.0) )
+                            quote!( crate::__private::de::MapOrSeqDeserializeSeed::new(#key, Some(#pred), self.0) )
                         }
                         _ => quote!( <#ty>::into_dseed(self.0) ),
                     }

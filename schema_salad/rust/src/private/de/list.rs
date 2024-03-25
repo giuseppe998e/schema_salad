@@ -40,12 +40,7 @@ where
     where
         D: de::Deserializer<'de>,
     {
-        struct OneOrMoreVisitor<'sd, T> {
-            data: &'sd SeedData,
-            _phant: PhantomData<T>,
-        }
-
-        impl<'de, 'sd, T> de::Visitor<'de> for OneOrMoreVisitor<'sd, T>
+        impl<'de, 'sd, T> de::Visitor<'de> for OneOrMoreDeserializeSeed<'sd, T>
         where
             T: IntoDeserializeSeed<'de, 'sd>,
         {
@@ -79,10 +74,7 @@ where
             }
         }
 
-        deserializer.deserialize_any(OneOrMoreVisitor {
-            data: self.data,
-            _phant: PhantomData,
-        })
+        deserializer.deserialize_any(self)
     }
 }
 
@@ -131,16 +123,9 @@ where
     where
         D: de::Deserializer<'de>,
     {
-        struct MapOrSeqVisitor<'k, 's, T> {
-            key: &'k str,
-            predicate: Option<&'k str>,
-            data: &'s SeedData,
-            _phant: PhantomData<T>,
-        }
-
-        impl<'de, 'k, 's, T> de::Visitor<'de> for MapOrSeqVisitor<'k, 's, T>
+        impl<'de, 'sd, T> de::Visitor<'de> for MapOrSeqDeserializeSeed<'sd, T>
         where
-            T: IntoDeserializeSeed<'de, 's>,
+            T: IntoDeserializeSeed<'de, 'sd>,
         {
             type Value = List<T>;
 
@@ -179,8 +164,8 @@ where
                     let entry = {
                         let content = de_private::Content::Map(map);
                         let deserializer = de_private::ContentDeserializer::new(content);
-                        let entry_dseed = T::into_dseed(self.data);
-                        de::DeserializeSeed::deserialize(entry_dseed, deserializer)?
+                        let dseed = T::into_dseed(self.data);
+                        de::DeserializeSeed::deserialize(dseed, deserializer)?
                     };
 
                     entries.push(entry);
@@ -203,11 +188,6 @@ where
             }
         }
 
-        deserializer.deserialize_any(MapOrSeqVisitor {
-            key: self.key,
-            predicate: self.predicate,
-            data: self.data,
-            _phant: PhantomData,
-        })
+        deserializer.deserialize_any(self)
     }
 }

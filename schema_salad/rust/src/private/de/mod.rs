@@ -1,4 +1,7 @@
-pub(crate) mod list;
+mod list;
 mod seed;
 
-pub(crate) use self::seed::{IntoDeserializeSeed, SeedData};
+pub(crate) use self::{
+    list::{MapOrSeqDeserializeSeed, OneOrMoreDeserializeSeed},
+    seed::{IntoDeserializeSeed, SeedData},
+};
