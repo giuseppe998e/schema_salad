@@ -51,11 +51,14 @@ RUST_RESERVED_WORDS = [
     "override", "priv", "proc", "pure", "sizeof", "typeof", "unsized", "virtual", "yield",
 ]
 RUST_SAFE_VARIANT = [
-    (re.compile("(^|[-_.])([a-zA-Z])"), lambda m: m.group(2).capitalize()),
-    (re.compile("(^|[-.])([0-9])"), lambda m: f"_{m.group(2)}"),
-    (re.compile("([a-zA-Z])[-_.]([0-9])"), lambda m: m.group(1) + m.group(2)),
+    (re.compile(r"(^|[-_.])([a-zA-Z])"), lambda m: m.group(2).capitalize()),
+    (re.compile(r"(^|[-.])([0-9])"), lambda m: f"_{m.group(2)}"),
+    (re.compile(r"([a-zA-Z])[-_.]([0-9])"), lambda m: m.group(1) + m.group(2)),
 ]
 
+MD_NON_HYPERLINK = re.compile(
+    r"(?<!][\([])(?<![<`[])(https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*))(?<![>`.[])"
+)
 
 def dict_get(d: Dict[str, Any], key: str, *types: Type) -> Any:
     """
@@ -146,12 +149,19 @@ def generate_salad_attrs(attrs: Dict[str, Any]) -> List[str]:
     return result
 
 
-def generate_docs(docs: Union[str, List[str]]) -> List[str]:
+def generate_docs(docs: Union[str, List[str]], prefix = "///") -> List[str]:
     """
     Generates documentation comments for a given string or list of strings.
     """
+    def process_sub_line(sub_line):
+        sub_line = sub_line
+        for url in re.finditer(MD_NON_HYPERLINK, sub_line):
+            url_match = url.group()
+            sub_line = sub_line.replace(url_match, f"<{url_match}>")
+        return sub_line
+
     return [
-        f"/// {sub_line}"
+        f"{prefix} {process_sub_line(sub_line)}"
         for line in (docs.strip().splitlines(True) if isinstance(docs, str) else docs)
         for sub_line in line.splitlines()
     ]
