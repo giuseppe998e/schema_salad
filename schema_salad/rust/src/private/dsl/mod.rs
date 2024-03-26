@@ -28,16 +28,16 @@ impl<'de, D: de::Deserializer<'de>> Preprocessor<D> {
 impl<'de, V: de::Visitor<'de>> Preprocessor<V> {
     #[cfg(feature = "dsl_json")]
     fn deserialize_json_data<E: de::Error>(self, data: String) -> Result<V::Value, E> {
-        let string_cursor = std::io::Cursor::new(data);
-        let deserializer = &mut serde_json::Deserializer::from_reader(string_cursor);
+        let data_cursor = std::io::Cursor::new(data);
+        let deserializer = &mut serde_json::Deserializer::from_reader(data_cursor);
         de::Deserializer::deserialize_any(deserializer, self)
             .map_err(|e| E::custom(format_args!("preprocessor error: {e}")))
     }
 
     #[cfg(feature = "dsl_yaml")]
     fn deserialize_yaml_data<E: de::Error>(self, data: String) -> Result<V::Value, E> {
-        let string_cursor = std::io::Cursor::new(data);
-        let deserializer = serde_yaml::Deserializer::from_reader(string_cursor);
+        let data_cursor = std::io::Cursor::new(data);
+        let deserializer = serde_yaml::Deserializer::from_reader(data_cursor);
         de::Deserializer::deserialize_any(deserializer, self)
             .map_err(|e| E::custom(format_args!("preprocessor error: {e}")))
     }
@@ -154,11 +154,16 @@ impl<'de, V: de::Visitor<'de>> de::Visitor<'de> for Preprocessor<V> {
     }
 
     fn visit_map<A: de::MapAccess<'de>>(self, map: A) -> Result<Self::Value, A::Error> {
-        fn get_uri_extension(path: &str) -> Option<&str> {
-            path.rsplit_once('/')
-                .and_then(|(_, file)| file.rsplit_once('.').map(|(_, ext)| ext))
+        fn get_uri_extension(uri: &str) -> Option<&str> {
+            uri.split_once(['?', '#'])
+                .map(|(url, _)| url)
+                .or(Some(uri))
+                .and_then(|uri| uri.rsplit_once(['/', '\\']))
+                .and_then(|(_, file)| file.rsplit_once('.'))
+                .map(|(_, ext)| ext)
         }
 
+        #[cfg_attr(not(feature = "dsl_http"), inline)]
         fn read_uri_content<E: de::Error>(uri: &str) -> Result<String, E> {
             #[cfg(feature = "dsl_http")]
             if uri.starts_with("https://") || uri.starts_with("http://") {
@@ -186,19 +191,25 @@ impl<'de, V: de::Visitor<'de>> de::Visitor<'de> for Preprocessor<V> {
                 let uri = peekable_map.next_value::<String>()?;
 
                 match get_uri_extension(&uri) {
-                    #[cfg(feature = "dsl_json")]
-                    Some("json") => {
+                    #[cfg(all(feature = "dsl_json", feature = "dsl_http"))]
+                    Some("json" | "JSON") | None => {
+                        let content = read_uri_content(&uri)?;
+                        self.deserialize_json_data(content)
+                    }
+                    #[cfg(all(feature = "dsl_json", not(feature = "dsl_http")))]
+                    Some("json" | "JSON") => {
                         let content = read_uri_content(&uri)?;
                         self.deserialize_json_data(content)
                     }
                     #[cfg(feature = "dsl_yaml")]
-                    Some("yaml" | "yml") => {
+                    Some("yaml" | "yml" | "YAML" | "YML") => {
                         let content = read_uri_content(&uri)?;
                         self.deserialize_yaml_data(content)
                     }
                     Some(ext) => Err(<A::Error as de::Error>::custom(format_args!(
                         "preprocessor error: deserializer for `{ext}` file type missing."
                     ))),
+                    #[cfg(not(feature = "dsl_http"))]
                     None => Err(<A::Error as de::Error>::custom(format_args!(
                         "preprocessor error: `$import` file type missing."
                     ))),
