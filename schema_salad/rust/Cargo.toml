@@ -1,8 +1,6 @@
 [package]
 name = "{package_name}"
 version = "{package_version}"
-authors = [ "Giuseppe Eletto <giuseppe@eletto.me>" ]
-license = "Apache-2.0"
 rust-version = "1.72.1"
 publish = false
 edition = "2021"
