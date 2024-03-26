@@ -1,3 +1,6 @@
+//! ## Features
+#![doc = document_features::document_features!()]
+
 pub mod core;
 
 // Used by generated code. Not public API.

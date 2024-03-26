@@ -167,16 +167,16 @@ impl<'de, V: de::Visitor<'de>> de::Visitor<'de> for Preprocessor<V> {
         fn read_uri_content<E: de::Error>(uri: &str) -> Result<String, E> {
             #[cfg(feature = "dsl_http")]
             if uri.starts_with("https://") || uri.starts_with("http://") {
-                let request = ehttp::Request::get(uri);
-                return ehttp::fetch_blocking(&request)
-                    .and_then(|r| match r.status {
-                        200 => String::from_utf8(r.bytes).map_err(|e| e.to_string()),
-                        code => Err(format!(
-                            "request to `{uri}` failed with status code: {code} - {}",
-                            r.status_text
-                        )),
-                    })
-                    .map_err(|e| E::custom(format_args!("preprocessor error: {e}")));
+                return match ureq::get(uri).call() {
+                    Ok(r) => match r.status() {
+                        200 => r.into_string().map_err(|e| E::custom(format_args!("preprocessor error: {e}"))),
+                        code => Err(E::custom(format_args!(
+                            "preprocessor error: request to `{uri}` failed with status code: {code} - {}",
+                            r.status_text(),
+                        ))),
+                    },
+                    Err(e) => Err(E::custom(format_args!("preprocessor error: {e}"))),
+                };
             }
 
             fs::read_to_string(uri).map_err(|e| E::custom(format_args!("preprocessor error: {e}")))
