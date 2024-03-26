@@ -1,9 +1,3 @@
-//! Licensed under either of:
-//! - Apache License, Version 2.0 (LICENSE-APACHE or http://www.apache.org/licenses/LICENSE-2.0)
-//! - MIT license (LICENSE-MIT or http://opensource.org/licenses/MIT)
-//!
-//! This file may not be copied, modified, or distributed except according to those terms.
-
 use std::marker::PhantomData;
 
 use serde::{__private::de as private_de, de};
@@ -85,7 +79,7 @@ where
     where
         V: de::DeserializeSeed<'de>,
     {
-        self.peeked = None; // Clears the previous peeked key
+        //self.peeked = None; // Clears the previous peeked key
         self.map.next_value_seed(seed)
     }
 
