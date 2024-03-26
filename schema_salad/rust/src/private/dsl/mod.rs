@@ -1,9 +1,9 @@
 #[cfg(all(
-    feature = "dsl_http",
+    feature = "dsl",
     not(any(feature = "dsl_json", feature = "dsl_yaml"))
 ))]
 compile_error!(
-    "feature \"dsl_http\" requires at least one feature between \"dsl_json\" and \"dsl_yaml\""
+    "feature \"dsl\" requires at least one feature between \"dsl_json\" and \"dsl_yaml\""
 );
 
 mod map_access;
