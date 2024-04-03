@@ -100,7 +100,7 @@ mod tuples {
         }
     }
 
-    fn generate_from_impls<'i>(input: &'i InputEnum) -> impl Iterator<Item = TokenStream2> + 'i {
+    fn generate_from_impls(input: &InputEnum) -> impl Iterator<Item = TokenStream2> + '_ {
         let InputEnum {
             ident, variants, ..
         } = input;
@@ -343,7 +343,7 @@ mod units {
         let variant_ident_iter1 = variants.iter().map(|v| &v.ident);
         let variant_ident_iter2 = variant_ident_iter1.clone();
 
-        let variant_value_iter1 = variant_strings.iter().map(|s| s);
+        let variant_value_iter1 = variant_strings.iter();
         let variant_value_iter2 = variant_value_iter1.clone();
 
         let values_str = variant_value_iter2

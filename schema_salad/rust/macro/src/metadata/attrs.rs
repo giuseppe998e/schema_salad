@@ -6,13 +6,13 @@ use syn::{
     MetaNameValue, Token,
 };
 
-pub(crate) const SALAD_ATTR_AS_STR: &'static str = "as_str";
-pub(crate) const SALAD_ATTR_DEFAULT: &'static str = "default";
-pub(crate) const SALAD_ATTR_ID: &'static str = "identifier";
-pub(crate) const SALAD_ATTR_MAP_KEY: &'static str = "map_key";
-pub(crate) const SALAD_ATTR_MAP_PREDICATE: &'static str = "map_predicate";
-pub(crate) const SALAD_ATTR_ROOT: &'static str = "root";
-pub(crate) const SALAD_ATTR_SUBSCOPE: &'static str = "subscope";
+pub(crate) const SALAD_ATTR_AS_STR: &str = "as_str";
+pub(crate) const SALAD_ATTR_DEFAULT: &str = "default";
+pub(crate) const SALAD_ATTR_ID: &str = "identifier";
+pub(crate) const SALAD_ATTR_MAP_KEY: &str = "map_key";
+pub(crate) const SALAD_ATTR_MAP_PREDICATE: &str = "map_predicate";
+pub(crate) const SALAD_ATTR_ROOT: &str = "root";
+pub(crate) const SALAD_ATTR_SUBSCOPE: &str = "subscope";
 
 #[derive(Clone)]
 pub(crate) struct MacroAttributes {

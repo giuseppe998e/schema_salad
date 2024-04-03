@@ -181,9 +181,7 @@ mod de {
         StructField, SALAD_ATTR_MAP_KEY, SALAD_ATTR_MAP_PREDICATE, SALAD_ATTR_SUBSCOPE,
     };
 
-    fn check_field_value_iter<'a>(
-        input: &'a InputStruct,
-    ) -> impl Iterator<Item = TokenStream2> + 'a {
+    fn check_field_value_iter(input: &InputStruct) -> impl Iterator<Item = TokenStream2> + '_ {
         let InputStruct {
             fields,
             value_ident,

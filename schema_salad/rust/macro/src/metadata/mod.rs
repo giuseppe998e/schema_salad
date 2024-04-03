@@ -290,7 +290,7 @@ impl ToTokens for EnumVariant {
     }
 }
 
-// Union
+// Unit
 #[derive(Clone)]
 pub(crate) struct InputUnit {
     pub salad_attrs: MacroAttributes,
@@ -312,11 +312,11 @@ impl TryFrom<DeriveInput> for InputUnit {
 
         let salad_attrs = MacroAttributes::try_from(&mut attrs)?;
 
-        return Ok(Self {
+        Ok(Self {
             salad_attrs,
             attrs,
             vis,
             ident,
-        });
+        })
     }
 }
