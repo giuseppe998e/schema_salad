@@ -8,9 +8,9 @@ pub(crate) mod de;
 pub(crate) mod dsl;
 
 // Reference counter feature (ON)
-#[cfg(feature = "mthread")]
+#[cfg(feature = "arc")]
 pub type Ref<T> = std::sync::Arc<T>;
 
 // Reference counter feature (OFF)
-#[cfg(not(feature = "mthread"))]
+#[cfg(not(feature = "arc"))]
 pub type Ref<T> = std::rc::Rc<T>;

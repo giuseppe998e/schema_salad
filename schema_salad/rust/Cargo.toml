@@ -7,20 +7,20 @@ edition = "2021"
 
 [features]
 #! #### DSL Preprocessor features
-## Enables the DSL preprocessor (requires `dsl_json` and/or `dsl_yaml`)
+## Enable the DSL preprocessor (requires `dsl_json` or `dsl_yaml`)
 dsl = []
-## Enables the DSL preprocessor with all extensions
+## Enable the DSL preprocessor with all extensions
 dsl_full = ["dsl", "dsl_http", "dsl_json", "dsl_yaml"]
-## Enables the DSL preprocessor's HTTP support
+## Enable the DSL preprocessor's HTTP support
 dsl_http = ["dsl", "dep:ureq"]
-## Enables the DSL preprocessor's JSON support
+## Enable the DSL preprocessor's JSON support
 dsl_json = ["dsl", "dep:serde_json"]
-## Enables the DSL preprocessor's YAML support
+## Enable the DSL preprocessor's YAML support
 dsl_yaml = ["dsl", "dep:serde_yaml"]
 
-#! #### Multi-threading features
-## Enables the support for multi-threading
-mthread = []
+#! #### Multi-thread features
+## Enable support for O(1) cloning in a multi-threaded environment
+arc = []
 
 [dependencies]
 compact_str = { version = "0.7", features = [ "serde" ] }
