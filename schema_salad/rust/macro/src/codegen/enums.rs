@@ -1,354 +1,332 @@
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
+use syn::{punctuated::Punctuated, Token};
 
-use crate::metadata::{InputEnum, SALAD_ATTR_AS_STR};
+use super::CodeGen;
+use crate::input::{EnumInput, Metadata, Variants};
 
-pub(super) fn generate_enum(input: InputEnum) -> syn::Result<TokenStream2> {
-    let InputEnum {
-        ident, variants, ..
-    } = &input;
+impl CodeGen for EnumInput {
+    fn define_type(&self) -> syn::Result<TokenStream2> {
+        let attrs = &self.attrs;
+        let vis = &self.vis;
+        let ident = self.ident();
+        let variants = &self.variants;
 
-    let variant_strings = variants
-        .iter()
-        .filter_map(|v| {
-            if v.field.is_none() {
-                match v.salad_attrs.get_string(SALAD_ATTR_AS_STR) {
-                    Ok(Some(value)) => Some(Ok(value)),
-                    Ok(None) => Some(Err(syn::Error::new(
-                        ident.span(),
-                        format_args!(
-                            "Attribute '#[salad({} = \"...\")' missing for variant `{}`, unable to generate the type.",
-                            SALAD_ATTR_AS_STR,
-                            v.ident,
-                        ),
-                    ))),
-                    Err(e) => Some(Err(e)),
-                }
-            } else {
-                None
+        let seed_struct = match variants {
+            Variants::Tuple(_) => {
+                let seed_ident = self.seed_ident();
+                Some(quote! {
+                    #[doc(hidden)]
+                    pub(crate) struct #seed_ident<'_sd>(&'_sd crate::__private::de::SeedData);
+                })
             }
-        })
-    .collect::<syn::Result<Vec<_>>>()?;
+            Variants::Unit(_) => None,
+        };
 
-    match (variants.len(), variant_strings.len()) {
-        (1.., 0) => Ok(tuples::generate_enum(&input)),
-        (v @ 1.., u @ 1..) if v == u => Ok(units::generate_enum(&input, &variant_strings)),
-        (1.., 1..) => Err(syn::Error::new(
-            ident.span(),
-            "Mixed tuple and unit enum is not supported.",
-        )),
-        _ => Err(syn::Error::new(
-            ident.span(),
-            "Enum without variants is not supported.",
-        )),
-    }
-}
-
-mod tuples {
-    use super::*;
-    use crate::{metadata::SALAD_ATTR_ROOT, util::TypeExt};
-
-    pub(super) fn generate_enum(input: &InputEnum) -> TokenStream2 {
-        let InputEnum {
-            attrs,
-            vis,
-            ident,
-            variants,
-            seed_ident,
-            ..
-        } = &input;
-
-        let tryfrom_impls = self::generate_from_impls(input);
-        let serialize_impl = self::generate_ser_impl(input);
-        let deserialize_impl = self::generate_de_impl(input);
-        let root_deserialize_impl = self::generate_root_de_impl(input);
-
-        quote! {
+        Ok(quote! {
             #(#attrs)*
             #vis enum #ident {
                 #variants
             }
 
-            #[doc(hidden)]
-            pub(crate) struct #seed_ident<'_sd>(&'_sd crate::__private::de::SeedData);
-
-            #[doc(hidden)]
-            const _: () = {
-                extern crate serde as _serde;
-                extern crate std as _std;
-
-                #[automatically_derived]
-                impl crate::core::SaladType for self::#ident {}
-
-                #( #tryfrom_impls )*
-
-                #serialize_impl
-
-                #[automatically_derived]
-                impl<'_de, '_sd> crate::__private::de::IntoDeserializeSeed<'_de, '_sd> for self::#ident {
-                    type Value = self::#seed_ident<'_sd>;
-
-                    #[inline]
-                    fn into_dseed(data: &'_sd crate::__private::de::SeedData) -> Self::Value {
-                        self::#seed_ident(data)
-                    }
-                }
-
-                #deserialize_impl
-                #root_deserialize_impl
-            };
-        }
-    }
-
-    fn generate_from_impls(input: &InputEnum) -> impl Iterator<Item = TokenStream2> + '_ {
-        let InputEnum {
-            ident, variants, ..
-        } = input;
-
-        variants.iter().map(move |v| {
-            let variant_ident = &v.ident;
-            let variant_ty = {
-                debug_assert!(v.field.is_some());
-                unsafe { &v.field.as_ref().unwrap_unchecked().ty }
-            };
-
-            let variant_ty_ident = variant_ty.to_variant_ident().to_string();
-            let custom_from_impl = match variant_ty_ident.as_str() {
-                "StrValue" => Some(quote! {
-                    #[automatically_derived]
-                    impl _std::convert::From<&str> for self::#ident {
-                        fn from(value: &str) -> Self {
-                            self::#ident::#variant_ident(
-                                _std::convert::Into::into(value)
-                            )
-                        }
-                    }
-
-                    #[automatically_derived]
-                    impl _std::convert::From<String> for self::#ident {
-                        fn from(value: String) -> Self {
-                            self::#ident::#variant_ident(
-                                _std::convert::Into::into(value)
-                            )
-                        }
-                    }
-                }),
-                "ListStrValue" => Some(quote! {
-                    #[automatically_derived]
-                    impl _std::convert::From<&[&str]> for self::#ident {
-                        fn from(value: &[&str]) -> Self {
-                            let box_slice = value
-                                    .iter()
-                                    .map(|s| _std::convert::Into::into(*s))
-                                    .collect::<crate::core::List<_>>();
-                            self::#ident::#variant_ident(box_slice)
-                        }
-                    }
-
-                    #[automatically_derived]
-                    impl _std::convert::From<&[String]> for self::#ident {
-                        fn from(value: &[String]) -> Self {
-                            let box_slice = value
-                                    .iter()
-                                    .map(_std::convert::Into::into)
-                                    .collect::<crate::core::List<_>>();
-                            self::#ident::#variant_ident(box_slice)
-                        }
-                    }
-
-                    #[automatically_derived]
-                    impl _std::convert::From<Vec<String>> for self::#ident {
-                        fn from(value: Vec<String>) -> Self {
-                            let box_slice = value
-                                    .into_iter()
-                                    .map(std::convert::Into::into)
-                                    .collect::<crate::core::List<_>>();
-                            self::#ident::#variant_ident(box_slice)
-                        }
-                    }
-                }),
-                _ => None,
-            };
-
-            quote! {
-                #[automatically_derived]
-                impl _std::convert::From<#variant_ty> for self::#ident {
-                    fn from(value: #variant_ty) -> Self {
-                        self::#ident::#variant_ident(value)
-                    }
-                }
-
-                #custom_from_impl
-            }
+            #seed_struct
         })
     }
 
-    fn generate_ser_impl(input: &InputEnum) -> TokenStream2 {
-        let InputEnum {
-            ident, variants, ..
-        } = input;
+    fn impl_std_traits(&self) -> syn::Result<Option<TokenStream2>> {
+        match &self.variants {
+            Variants::Tuple(variants) => tuple::impl_std_traits(self, variants),
+            Variants::Unit(variants) => unit::impl_std_traits(self, variants),
+        }
+    }
 
+    fn impl_serialize(&self) -> syn::Result<TokenStream2> {
+        match &self.variants {
+            Variants::Tuple(variants) => tuple::impl_serialize(self, variants),
+            Variants::Unit(_) => unit::impl_serialize(self),
+        }
+    }
+
+    fn impl_deserialize_seed(&self) -> syn::Result<TokenStream2> {
+        match &self.variants {
+            Variants::Tuple(variants) => tuple::impl_deserialize_seed(self, variants),
+            Variants::Unit(_) => unit::impl_deserialize_seed(self),
+        }
+    }
+
+    fn impl_deserialize(&self) -> syn::Result<Option<TokenStream2>> {
+        match &self.variants {
+            Variants::Tuple(_) => self.__impl_deserialize(),
+            Variants::Unit(variants) => unit::impl_deserialize(self, variants),
+        }
+    }
+}
+
+mod tuple {
+    use super::*;
+    use crate::{ext::TypeExt, input::TupleVariant};
+
+    pub(super) fn impl_std_traits(
+        this: &EnumInput,
+        variants: &Punctuated<TupleVariant, Token![,]>,
+    ) -> syn::Result<Option<TokenStream2>> {
+        let ident = this.ident();
+        let tokenstream = variants
+            .iter()
+            .map(move |v| {
+                let variant_ident = &v.ident;
+                let variant_ty = &v.field.ty;
+
+                let custom_from_impls = {
+                    let variant_ty_discr = variant_ty.to_variant_ident();
+                    if variant_ty_discr == "StrValue" {
+                        Some(quote! {
+                            #[automatically_derived]
+                            impl ::std::convert::From<&str> for self::#ident {
+                                fn from(value: &str) -> Self {
+                                    Self::#variant_ident(
+                                        ::std::convert::Into::into(value)
+                                    )
+                                }
+                            }
+
+                            #[automatically_derived]
+                            impl ::std::convert::From<String> for self::#ident {
+                                fn from(value: String) -> Self {
+                                    Self::#variant_ident(
+                                        ::std::convert::Into::into(value)
+                                    )
+                                }
+                            }
+                        })
+                    } else if variant_ty_discr == "ListStrValue" {
+                        Some(quote! {
+                            #[automatically_derived]
+                            impl ::std::convert::From<&[&str]> for self::#ident {
+                                fn from(value: &[&str]) -> Self {
+                                    let box_slice = value
+                                            .iter()
+                                            .map(|s| ::std::convert::Into::into(*s))
+                                            .collect::<crate::core::List<_>>();
+                                    Self::#variant_ident(box_slice)
+                                }
+                            }
+
+                            #[automatically_derived]
+                            impl ::std::convert::From<&[String]> for self::#ident {
+                                fn from(value: &[String]) -> Self {
+                                    let box_slice = value
+                                            .iter()
+                                            .map(::std::convert::Into::into)
+                                            .collect::<crate::core::List<_>>();
+                                    Self::#variant_ident(box_slice)
+                                }
+                            }
+
+                            #[automatically_derived]
+                            impl ::std::convert::From<Vec<String>> for self::#ident {
+                                fn from(value: Vec<String>) -> Self {
+                                    let box_slice = value
+                                            .into_iter()
+                                            .map(::std::convert::Into::into)
+                                            .collect::<crate::core::List<_>>();
+                                    Self::#variant_ident(box_slice)
+                                }
+                            }
+                        })
+                    } else {
+                        None
+                    }
+                };
+
+                quote! {
+                    #[automatically_derived]
+                    impl ::std::convert::From<#variant_ty> for self::#ident {
+                        fn from(value: #variant_ty) -> Self {
+                            Self::#variant_ident(value)
+                        }
+                    }
+
+                    #custom_from_impls
+                }
+            })
+            .collect();
+
+        Ok(Some(tokenstream))
+    }
+
+    pub(super) fn impl_serialize(
+        this: &EnumInput,
+        variants: &Punctuated<TupleVariant, Token![,]>,
+    ) -> syn::Result<TokenStream2> {
+        let ident = this.ident();
         let variant_ident_iter = variants.iter().map(|v| &v.ident);
 
-        quote! {
+        Ok(quote! {
             #[automatically_derived]
-            impl _serde::ser::Serialize for self::#ident {
+            impl ::serde::ser::Serialize for self::#ident {
                 fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-                where
-                    S: _serde::ser::Serializer,
+                where S: ::serde::ser::Serializer,
                 {
                     match self {
                         #( Self::#variant_ident_iter(v) => v.serialize(serializer) ),*
                     }
                 }
             }
-        }
+        })
     }
 
-    fn generate_de_impl(input: &InputEnum) -> TokenStream2 {
-        let InputEnum {
-            ident,
-            variants,
-            seed_ident,
-            ..
-        } = input;
+    pub(super) fn impl_deserialize_seed(
+        this: &EnumInput,
+        variants: &Punctuated<TupleVariant, Token![,]>,
+    ) -> syn::Result<TokenStream2> {
+        let ident = this.ident();
+        let seed_ident = this.seed_ident();
 
         let err_string = format!("data did not match any variant of enum {}", ident);
 
         let variant_ident_iter = variants.iter().map(|v| &v.ident);
-        let variant_ty_iter = variants.iter().map(|v| {
-            debug_assert!(v.field.is_some());
-            unsafe { &v.field.as_ref().unwrap_unchecked().ty }
-        });
+        let variant_ty_iter = variants.iter().map(|v| &v.field.ty);
 
-        quote! {
+        Ok(quote! {
             #[automatically_derived]
-            impl<'_de, '_sd> _serde::de::DeserializeSeed<'_de> for self::#seed_ident<'_sd> {
+            impl<'_de, '_sd> crate::__private::de::IntoDeserializeSeed<'_de, '_sd> for self::#ident {
+                type Value = self::#seed_ident<'_sd>;
+
+                #[inline]
+                fn into_dseed(data: &'_sd crate::__private::de::SeedData) -> Self::Value {
+                    self::#seed_ident(data)
+                }
+            }
+
+            #[automatically_derived]
+            impl<'_de, '_sd> ::serde::de::DeserializeSeed<'_de> for self::#seed_ident<'_sd> {
                 type Value = self::#ident;
 
                 fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-                where
-                    D: _serde::de::Deserializer<'_de>,
+                where D: ::serde::de::Deserializer<'_de>,
                 {
                     let content =
-                        <_serde::__private::de::Content<'_de> as _serde::Deserialize>::deserialize(
+                        <::serde::__private::de::Content<'_de> as ::serde::Deserialize>::deserialize(
                             deserializer,
                         )?;
                     let content_deserializer =
-                        _serde::__private::de::ContentRefDeserializer::<D::Error>::new(&content);
+                        ::serde::__private::de::ContentRefDeserializer::<D::Error>::new(&content);
 
-                    #(
+                    #({
+                        let data = self.0.clone();
+                        let dseed =
+                            <#variant_ty_iter as crate::__private::de::IntoDeserializeSeed>::into_dseed(
+                                &data
+                            );
+
+                        if let Ok(v) =
+                            ::serde::de::DeserializeSeed::deserialize(dseed, content_deserializer)
                         {
-                            let data = self.0.clone();
-                            let deserialize_seed =
-                                <#variant_ty_iter as crate::__private::de::IntoDeserializeSeed>::into_dseed(
-                                    &data
-                                );
-
-                            if let Ok(v) =
-                                _serde::de::DeserializeSeed::deserialize(deserialize_seed, content_deserializer)
-                            {
-                                return match self.0.extend(data) {
-                                    Ok(_) => Ok(self::#ident::#variant_ident_iter(v)),
-                                    Err(e) => Err(_serde::de::Error::custom(e)),
-                                };
-                            }
+                            return match self.0.extend(data) {
+                                Ok(_) => Ok(self::#ident::#variant_ident_iter(v)),
+                                Err(e) => Err(::serde::de::Error::custom(e)),
+                            };
                         }
-                    )*
+                    })*
 
-                    Err(_serde::de::Error::custom(#err_string))
-                }
-            }
-        }
-    }
-
-    fn generate_root_de_impl(input: &InputEnum) -> Option<TokenStream2> {
-        let InputEnum {
-            salad_attrs,
-            ident,
-            variants,
-            ..
-        } = input;
-
-        if !salad_attrs.contains_and_is_true(SALAD_ATTR_ROOT) {
-            return None;
-        }
-
-        let err_string = format!("data did not match any variant of enum {}", ident);
-
-        let variant_ident_iter = variants.iter().map(|v| &v.ident);
-        let variant_ty_iter = variants.iter().map(|v| {
-            debug_assert!(v.field.is_some());
-            unsafe { &v.field.as_ref().unwrap_unchecked().ty }
-        });
-
-        Some(quote! {
-            #[automatically_derived]
-            impl<'_de> _serde::de::Deserialize<'_de> for self::#ident {
-                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-                where
-                    D: _serde::de::Deserializer<'_de>
-                {
-                    #[cfg(feature = "dsl")]
-                    let deserializer = crate::__private::dsl::Preprocessor::new(deserializer);
-
-                    let content =
-                        <_serde::__private::de::Content<'_de> as _serde::Deserialize>::deserialize(
-                            deserializer,
-                        )?;
-                    let content_deserializer =
-                        _serde::__private::de::ContentRefDeserializer::<D::Error>::new(&content);
-
-                    #(
-                        {
-                            let data = crate::__private::de::SeedData::new();
-                            let deserialize_seed =
-                                <#variant_ty_iter as crate::__private::de::IntoDeserializeSeed>::into_dseed(
-                                    &data
-                                );
-
-                            if let Ok(v) =
-                                _serde::de::DeserializeSeed::deserialize(deserialize_seed, content_deserializer)
-                            {
-                                return Ok(self::#ident::#variant_ident_iter(v));
-                            }
-                        }
-                    )*
-
-                    Err(_serde::de::Error::custom(#err_string))
+                    Err(::serde::de::Error::custom(#err_string))
                 }
             }
         })
     }
 }
 
-mod units {
-    use syn::LitStr;
-
+mod unit {
     use super::*;
-    use crate::codegen::generate_root_de_impl;
+    use crate::input::UnitVariant;
 
-    pub(super) fn generate_enum(input: &InputEnum, variant_strings: &[&LitStr]) -> TokenStream2 {
-        let InputEnum {
-            salad_attrs,
-            attrs,
-            vis,
-            ident,
-            variants,
-            seed_ident,
-        } = input;
-
-        let root_deserialize_impl = generate_root_de_impl(ident, seed_ident, salad_attrs);
+    pub(super) fn impl_std_traits(
+        this: &EnumInput,
+        variants: &Punctuated<UnitVariant, Token![,]>,
+    ) -> syn::Result<Option<TokenStream2>> {
+        let ident = this.ident();
 
         let variant_ident_iter1 = variants.iter().map(|v| &v.ident);
         let variant_ident_iter2 = variant_ident_iter1.clone();
 
-        let variant_value_iter1 = variant_strings.iter();
+        let variant_value_iter1 = variants.iter().map(|v| &v.literal);
         let variant_value_iter2 = variant_value_iter1.clone();
 
-        let values_str = variant_value_iter2
-            .clone()
-            .map(|s| format!("\"{}\"", s.value()))
+        Ok(Some(quote! {
+            #[automatically_derived]
+            impl ::std::convert::TryFrom<&str> for self::#ident {
+                type Error = ();
+
+                #[inline]
+                fn try_from(value: &str) -> Result<Self, Self::Error> {
+                    <self::#ident as ::std::str::FromStr>::from_str(value)
+                }
+            }
+
+            #[automatically_derived]
+            impl ::std::str::FromStr for self::#ident {
+                type Err = ();
+
+                fn from_str(input: &str) -> Result<Self, Self::Err> {
+                    match input {
+                        #( #variant_value_iter1 => Ok(self::#ident::#variant_ident_iter1), )*
+                        _ => Err(()),
+                    }
+                }
+            }
+
+            #[automatically_derived]
+            impl ::std::fmt::Display for self::#ident {
+                fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                    match self {
+                        #( Self::#variant_ident_iter2 => f.write_str(#variant_value_iter2) ),*
+                    }
+                }
+            }
+        }))
+    }
+
+    pub(super) fn impl_serialize(this: &EnumInput) -> syn::Result<TokenStream2> {
+        let ident = this.ident();
+
+        Ok(quote! {
+            #[automatically_derived]
+            impl ::serde::ser::Serialize for self::#ident {
+                fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where S: ::serde::ser::Serializer,
+                {
+                    serializer.collect_str(self)
+                }
+            }
+        })
+    }
+
+    pub(super) fn impl_deserialize_seed(this: &EnumInput) -> syn::Result<TokenStream2> {
+        let ident = this.ident();
+
+        Ok(quote! {
+            #[automatically_derived]
+            impl<'_de, '_sd> crate::__private::de::IntoDeserializeSeed<'_de, '_sd> for self::#ident {
+                type Value = ::std::marker::PhantomData<Self>;
+
+                #[inline]
+                fn into_dseed(_: &'_sd crate::__private::de::SeedData) -> Self::Value {
+                    ::std::marker::PhantomData
+                }
+            }
+        })
+    }
+
+    pub(super) fn impl_deserialize(
+        this: &EnumInput,
+        variants: &Punctuated<UnitVariant, Token![,]>,
+    ) -> syn::Result<Option<TokenStream2>> {
+        let ident = this.ident();
+
+        let values_str = variants
+            .iter()
+            .map(|v| format!("\"{}\"", v.literal.value()))
             .collect::<Vec<_>>()
             .join(", ");
 
@@ -359,97 +337,34 @@ mod units {
             expected_str
         };
 
-        quote! {
-            #(#attrs)*
-            #vis enum #ident {
-                #variants
+        Ok(Some(quote! {
+            #[automatically_derived]
+            impl<'_de> ::serde::Deserialize<'_de> for self::#ident {
+                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                where
+                    D: ::serde::Deserializer<'_de>,
+                {
+                    struct UnitEnumVisitor;
+
+                    impl<'_de> ::serde::de::Visitor<'_de> for UnitEnumVisitor {
+                        type Value = self::#ident;
+
+                        fn expecting(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                            f.write_str(#expected_str)
+                        }
+
+                        fn visit_str<E: ::serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                            <self::#ident as ::std::str::FromStr>::from_str(v)
+                                .map_err(|_| ::serde::de::Error::invalid_value(
+                                    ::serde::de::Unexpected::Str(v),
+                                    &#values_str,
+                                ))
+                        }
+                    }
+
+                    deserializer.deserialize_str(UnitEnumVisitor)
+                }
             }
-
-            #[doc(hidden)]
-            const _: () = {
-                extern crate serde as _serde;
-                extern crate std as _std;
-
-                #[automatically_derived]
-                impl crate::core::SaladType for self::#ident {}
-
-                #[automatically_derived]
-                impl _std::convert::TryFrom<&str> for self::#ident {
-                    type Error = ();
-
-                    fn try_from(value: &str) -> Result<Self, Self::Error> {
-                        <self::#ident as _std::str::FromStr>::from_str(value)
-                    }
-                }
-
-                #[automatically_derived]
-                impl _std::str::FromStr for self::#ident {
-                    type Err = ();
-
-                    fn from_str(input: &str) -> Result<Self, Self::Err> {
-                        match input {
-                            #( #variant_value_iter1 => Ok(self::#ident::#variant_ident_iter1), )*
-                            _ => Err(()),
-                        }
-                    }
-                }
-
-                #[automatically_derived]
-                impl _std::fmt::Display for self::#ident {
-                    fn fmt(&self, f: &mut _std::fmt::Formatter<'_>) -> _std::fmt::Result {
-                        match self {
-                            #( Self::#variant_ident_iter2 => f.write_str(#variant_value_iter2) ),*
-                        }
-                    }
-                }
-
-                #[automatically_derived]
-                impl _serde::Serialize for self::#ident {
-                    fn serialize<S: _serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-                        serializer.collect_str(self)
-                    }
-                }
-
-                #[automatically_derived]
-                impl<'_de, '_sd> crate::__private::de::IntoDeserializeSeed<'_de, '_sd> for self::#ident {
-                    type Value = _std::marker::PhantomData<Self>;
-
-                    #[inline]
-                    fn into_dseed(_: &'_sd crate::__private::de::SeedData) -> Self::Value {
-                        _std::marker::PhantomData
-                    }
-                }
-
-                #[automatically_derived]
-                impl<'_de> _serde::Deserialize<'_de> for self::#ident {
-                    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-                    where
-                        D: _serde::Deserializer<'_de>,
-                    {
-                        struct UnitVisitor;
-
-                        impl<'de> _serde::de::Visitor<'de> for UnitVisitor {
-                            type Value = self::#ident;
-
-                            fn expecting(&self, f: &mut _std::fmt::Formatter) -> _std::fmt::Result {
-                                f.write_str(#expected_str)
-                            }
-
-                            fn visit_str<E: _serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
-                                <self::#ident as _std::str::FromStr>::from_str(v)
-                                    .map_err(|_| _serde::de::Error::invalid_value(
-                                        _serde::de::Unexpected::Str(v),
-                                        &#values_str,
-                                    ))
-                            }
-                        }
-
-                        deserializer.deserialize_str(UnitVisitor)
-                    }
-                }
-
-                #root_deserialize_impl
-            };
-        }
+        }))
     }
 }
