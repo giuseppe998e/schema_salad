@@ -158,8 +158,7 @@ impl<'de, V: de::Visitor<'de>> de::Visitor<'de> for Preprocessor<V> {
             uri.split_once(['?', '#'])
                 .map(|(url, _)| url)
                 .or(Some(uri))
-                .and_then(|uri| uri.rsplit_once(['/', '\\']))
-                .and_then(|(_, file)| file.rsplit_once('.'))
+                .and_then(|uri| uri.rsplit_once('.'))
                 .map(|(_, ext)| ext)
         }
 
