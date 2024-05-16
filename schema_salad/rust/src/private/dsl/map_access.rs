@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use serde::{__private::de as private_de, de};
 
 /// Wraps around a Serde's MapAccess, providing the ability
-/// to peek at the next key and/or value without consuming it.
+/// to peek at the next key without consuming it.
 pub struct PeekableMapAccess<'de, A> {
     map: A,
     peeked: Option<Option<private_de::Content<'de>>>,
