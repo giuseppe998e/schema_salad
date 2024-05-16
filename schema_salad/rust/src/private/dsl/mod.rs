@@ -110,15 +110,15 @@ mod util {
         #[cfg(feature = "dsl_http")]
         if uri.starts_with("https://") || uri.starts_with("http://") {
             return match ureq::get(uri).call() {
-                Ok(r) => match r.status() {
-                    200 => r
-                        .into_string()
-                        .map_err(|e| E::custom(format_args!("preprocessor error: {e}"))),
-                    code => Err(E::custom(format_args!(
-                        "preprocessor error: request to `{uri}` failed with status code: {code} - {}",
-                        r.status_text(),
-                    ))),
-                },
+                Ok(r) if r.status() == 200 => r
+                    .into_string()
+                    .map_err(|e| E::custom(format_args!("preprocessor error: {e}"))),
+
+                Ok(r) => Err(E::custom(format_args!(
+                    "preprocessor error: request to `{uri}` failed with code {}: {}",
+                    r.status(),
+                    r.status_text(),
+                ))),
                 Err(e) => Err(E::custom(format_args!("preprocessor error: {e}"))),
             };
         }
