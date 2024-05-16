@@ -12,6 +12,7 @@ use compact_str::CompactString;
 use serde::de::{self, MapAccess};
 
 use self::map_access::PeekableMapAccess;
+
 pub(crate) struct Preprocessor<T> {
     delegate: T,
 }
