@@ -3,7 +3,7 @@
 import filecmp
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Optional, cast
 
 import pytest
 
@@ -60,7 +60,7 @@ def test_cwl_cpp_generations_with_spdx(tmp_path: Path) -> None:
     """Generating different combinations of license headers"""
     """Generate License Identifier"""
     cpp_codegen("file://" + input_file, src_target, spdx_license_identifier="Apache-2.0")
-    lines = open(src_target, "r").readlines()[0:2]
+    lines = open(src_target).readlines()[0:2]
     assert lines[0] == "// SPDX-License-Identifier: Apache-2.0\n"
     assert lines[1] == "#pragma once\n"
 
@@ -70,7 +70,7 @@ def test_cwl_cpp_generations_with_spdx(tmp_path: Path) -> None:
         src_target,
         spdx_copyright_text=["Copyright 2016 Some People <email@example.com>"],
     )
-    lines = open(src_target, "r").readlines()[0:2]
+    lines = open(src_target).readlines()[0:2]
     assert lines[0] == "// SPDX-FileCopyrightText: Copyright 2016 Some People <email@example.com>\n"
     assert lines[1] == "#pragma once\n"
 
@@ -83,7 +83,7 @@ def test_cwl_cpp_generations_with_spdx(tmp_path: Path) -> None:
             "Copyright 2017 Person B <person_b@example.com>",
         ],
     )
-    lines = open(src_target, "r").readlines()[0:3]
+    lines = open(src_target).readlines()[0:3]
     assert lines[0] == "// SPDX-FileCopyrightText: Copyright 2016 Person A <person_a@example.com>\n"
     assert lines[1] == "// SPDX-FileCopyrightText: Copyright 2017 Person B <person_b@example.com>\n"
     assert lines[2] == "#pragma once\n"
@@ -98,7 +98,7 @@ def test_cwl_cpp_generations_with_spdx(tmp_path: Path) -> None:
             "Copyright 2017 Person B <person_b@example.com>",
         ],
     )
-    lines = open(src_target, "r").readlines()[0:4]
+    lines = open(src_target).readlines()[0:4]
 
     assert lines[0] == "// SPDX-FileCopyrightText: Copyright 2016 Person A <person_a@example.com>\n"
     assert lines[1] == "// SPDX-FileCopyrightText: Copyright 2017 Person B <person_b@example.com>\n"
@@ -109,7 +109,7 @@ def test_cwl_cpp_generations_with_spdx(tmp_path: Path) -> None:
 def cpp_codegen(
     file_uri: str,
     target: Path,
-    spdx_copyright_text: Optional[List[str]] = None,
+    spdx_copyright_text: Optional[list[str]] = None,
     spdx_license_identifier: Optional[str] = None,
 ) -> None:
     """Help using the C++ code generation function."""
@@ -119,7 +119,7 @@ def cpp_codegen(
     schema_doc, schema_metadata = metaschema_loader.resolve_all(schema_raw_doc, file_uri)
     codegen.codegen(
         "cpp",
-        cast(List[Dict[str, Any]], schema_doc),
+        cast(list[dict[str, Any]], schema_doc),
         schema_metadata,
         document_loader,
         target=str(target),

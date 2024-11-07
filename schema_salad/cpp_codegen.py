@@ -20,7 +20,7 @@ which can be combined with the CWL V1.0 schema as shown below::
 """
 
 import re
-from typing import IO, Any, Dict, List, Optional, Tuple, Union, cast
+from typing import IO, Any, Optional, Union, cast
 
 from . import _logger
 from .codegen_base import CodeGenBase, TypeDef
@@ -60,12 +60,12 @@ def safename(name: str) -> str:
 
 
 # TODO: this should be somehow not really exists
-def safename2(name: Dict[str, str]) -> str:
+def safename2(name: dict[str, str]) -> str:
     """Create a namespaced safename."""
     return safename(name["namespace"]) + "::" + safename(name["classname"])
 
 
-def split_name(s: str) -> Tuple[str, str]:
+def split_name(s: str) -> tuple[str, str]:
     """Split url name into its components.
 
     Splits names like https://xyz.xyz/blub#cwl/class
@@ -77,7 +77,7 @@ def split_name(s: str) -> Tuple[str, str]:
     return (t[0], t[1])
 
 
-def split_field(s: str) -> Tuple[str, str, str]:
+def split_field(s: str) -> tuple[str, str, str]:
     """Split field into its components.
 
     similar to split_name but for field names
@@ -95,14 +95,14 @@ class ClassDefinition:
     def __init__(self, name: str):
         """Initialize the class definition with a name."""
         self.fullName = name
-        self.extends: List[Dict[str, str]] = []
+        self.extends: list[dict[str, str]] = []
 
         # List of types from parent classes that have been specialized
-        self.specializationTypes: List[str] = []
+        self.specializationTypes: list[str] = []
 
         # this includes fields that are also inheritant
-        self.allfields: List[FieldDefinition] = []
-        self.fields: List[FieldDefinition] = []
+        self.allfields: list[FieldDefinition] = []
+        self.fields: list[FieldDefinition] = []
         self.abstract = False
         (self.namespace, self.classname) = split_name(name)
         self.namespace = safename(self.namespace)
@@ -253,7 +253,7 @@ class FieldDefinition:
 class MapDefinition:
     """Prototype of a map."""
 
-    def __init__(self, name: str, values: List[str]):
+    def __init__(self, name: str, values: list[str]):
         """Initialize union definition with a name and possible values."""
         self.values = values
         (self.namespace, self.classname) = split_name(name)
@@ -305,7 +305,7 @@ class MapDefinition:
 class UnionDefinition:
     """Prototype of a union."""
 
-    def __init__(self, name: str, types: List[str]):
+    def __init__(self, name: str, types: list[str]):
         """Initialize union definition with a name and possible types."""
         (self.namespace, self.classname) = split_name(name)
         self.namespace = safename(self.namespace)
@@ -379,7 +379,7 @@ class UnionDefinition:
 class EnumDefinition:
     """Prototype of a enum."""
 
-    def __init__(self, name: str, values: List[str]):
+    def __init__(self, name: str, values: list[str]):
         """Initialize enum definition with a name and possible values."""
         self.name = name
         self.values = values
@@ -535,7 +535,7 @@ class CppCodeGen(CodeGenBase):
         examples: Optional[str],
         package: str,
         copyright: Optional[str],
-        spdx_copyright_text: Optional[List[str]],
+        spdx_copyright_text: Optional[list[str]],
         spdx_license_identifier: Optional[str],
     ) -> None:
         """Initialize the C++ code generator."""
@@ -548,12 +548,12 @@ class CppCodeGen(CodeGenBase):
         self.spdx_copyright_text = spdx_copyright_text
         self.spdx_license_identifier = spdx_license_identifier
 
-        self.classDefinitions: Dict[str, ClassDefinition] = {}
-        self.enumDefinitions: Dict[str, EnumDefinition] = {}
-        self.mapDefinitions: Dict[str, MapDefinition] = {}
-        self.unionDefinitions: Dict[str, UnionDefinition] = {}
+        self.classDefinitions: dict[str, ClassDefinition] = {}
+        self.enumDefinitions: dict[str, EnumDefinition] = {}
+        self.mapDefinitions: dict[str, MapDefinition] = {}
+        self.unionDefinitions: dict[str, UnionDefinition] = {}
 
-    def convertTypeToCpp(self, type_declaration: Union[List[Any], Dict[str, Any], str]) -> str:
+    def convertTypeToCpp(self, type_declaration: Union[list[Any], dict[str, Any], str]) -> str:
         """Convert a Schema Salad type to a C++ type."""
         if not isinstance(type_declaration, list):
             return self.convertTypeToCpp([type_declaration])
@@ -875,7 +875,7 @@ public:
         *data = std::forward<T2>(oth);
     }
 
-    ~heap_object() = default;
+    ~heap_object();
 
     auto operator=(heap_object const& oth) -> heap_object& {
         *data = *oth;
@@ -952,6 +952,20 @@ public:
             self.mapDefinitions[key].writeDefinition(self.target, "    ")
         for key in self.unionDefinitions:
             self.unionDefinitions[key].writeDefinition(self.target, "    ")
+
+        # CPP23: std::unique_ptr in heap_object is constexpr.
+        # Hence, the compiler will try to instantiate the destructor on definition.
+        # If the destructor was defined inside heap_object, other classes would only
+        # be forward declared at this point.
+        # This results in an error, because the destructor cannot be generated for
+        # incomplete types.
+        # Therefore, the destructor is defined here, after all classes have been defined.
+        self.target.write(
+            """template <typename T>
+heap_object<T>::~heap_object() = default;
+
+"""
+        )
 
         # write implementations
         for key in self.classDefinitions:
@@ -1058,7 +1072,7 @@ void fromYaml(YAML::Node const& n, std::variant<Args...>& v){
 """
         )
 
-    def parseRecordField(self, field: Dict[str, Any]) -> FieldDefinition:
+    def parseRecordField(self, field: dict[str, Any]) -> FieldDefinition:
         """Parse a record field."""
         (namespace, classname, fieldname) = split_field(field["name"])
         remap = ""
@@ -1077,7 +1091,7 @@ void fromYaml(YAML::Node const& n, std::variant<Args...>& v){
 
         return FieldDefinition(name=fieldname, typeStr=fieldtype, optional=False, remap=remap)
 
-    def parseRecordSchema(self, stype: Dict[str, Any]) -> None:
+    def parseRecordSchema(self, stype: dict[str, Any]) -> None:
         """Parse a record schema."""
         cd = ClassDefinition(name=stype["name"])
         cd.abstract = stype.get("abstract", False)
@@ -1098,7 +1112,7 @@ void fromYaml(YAML::Node const& n, std::variant<Args...>& v){
 
         self.classDefinitions[stype["name"]] = cd
 
-    def parseMapSchema(self, stype: Dict[str, Any]) -> str:
+    def parseMapSchema(self, stype: dict[str, Any]) -> str:
         """Parse a map schema."""
         name = cast(str, stype["name"])
         if name not in self.mapDefinitions:
@@ -1107,7 +1121,7 @@ void fromYaml(YAML::Node const& n, std::variant<Args...>& v){
             )
         return name
 
-    def parseUnionSchema(self, stype: Dict[str, Any]) -> str:
+    def parseUnionSchema(self, stype: dict[str, Any]) -> str:
         """Parse a union schema."""
         name = cast(str, stype["name"])
         if name not in self.unionDefinitions:
@@ -1116,7 +1130,7 @@ void fromYaml(YAML::Node const& n, std::variant<Args...>& v){
             )
         return name
 
-    def parseEnum(self, stype: Dict[str, Any]) -> str:
+    def parseEnum(self, stype: dict[str, Any]) -> str:
         """Parse a schema salad enum."""
         name = cast(str, stype["name"])
         if name not in self.enumDefinitions:
@@ -1125,7 +1139,7 @@ void fromYaml(YAML::Node const& n, std::variant<Args...>& v){
             )
         return name
 
-    def parse(self, items: List[Dict[str, Any]]) -> None:
+    def parse(self, items: list[dict[str, Any]]) -> None:
         """Parse sechema salad items.
 
         This function is being called from the outside and drives

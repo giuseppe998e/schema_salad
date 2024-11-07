@@ -15,25 +15,27 @@ jobs:
   tox:
     name: CI tests via Tox
 
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     strategy:
       matrix:
         py-ver-major: [3]
-        py-ver-minor: [8, 9, 10, 11, 12]
-        step: [lint, bandit, unit, mypy, memleak]
+        py-ver-minor: [9, 10, 11, 12, 13]
+      fail-fast: false
 
     env:
       py-semver: ${{ format('{0}.{1}', matrix.py-ver-major, matrix.py-ver-minor) }}
-      TOXENV: ${{ format('py{0}{1}-{2}', matrix.py-ver-major, matrix.py-ver-minor, matrix.step) }}
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.py-semver }}
+          allow-prereleases: true
           cache: pip
           cache-dependency-path: |
             requirements.txt
@@ -45,7 +47,6 @@ jobs:
           pip install 'tox<4' tox-gh-actions
 
       - name: MyPy cache
-        if: ${{ matrix.step == 'mypy' }}
         uses: actions/cache@v4
         with:
           path: .mypy_cache/${{ env.py-semver }}
@@ -55,7 +56,6 @@ jobs:
         run: tox
 
       - name: Upload coverage to Codecov
-        if: ${{ matrix.step == 'unit' }}
         uses: codecov/codecov-action@v4
         with:
           fail_ci_if_error: true
@@ -65,7 +65,7 @@ jobs:
   tox-style:
     name: CI linters via Tox
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
 
     strategy:
       matrix:
@@ -73,7 +73,7 @@ jobs:
 
     env:
       py-semver: "3.12"
-      TOXENV: ${{ format('py312-{0}', matrix.step) }}
+      TOXENV: ${{ matrix.step }}
 
     steps:
       - uses: actions/checkout@v4
@@ -84,12 +84,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.py-semver }}
-
-      - name: Cache for pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ matrix.step }}-${{ hashFiles('requirements.txt') }}
+          cache: pip
 
       - name: Upgrade setuptools and install tox
         run: |
@@ -103,10 +98,72 @@ jobs:
       - name: Test with tox
         run: tox
 
+  typescript:
+    name: Confirm that codegen typescript passes tests with CWL
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            tox.ini
+      - name: Upgrade setuptools and install schema-salad
+        run: |
+          pip install -U pip setuptools wheel
+          pip install .
+      - name: Download valid CWL documents for testing
+        run: |
+          wget "https://github.com/common-workflow-lab/cwl-ts-auto/archive/refs/heads/main.zip"
+          unzip main.zip
+      - name: Generate cwl-ts-auto
+        run: |
+          schema-salad-tool --codegen typescript --codegen-examples cwl-ts-auto-main/src/test/data/examples \
+            --codegen-target cwl-ts-auto \
+            https://github.com/common-workflow-language/cwl-v1.2/raw/codegen/CommonWorkflowLanguage.yml
+      - name: run cwl-ts-auto tests
+        run: |
+          cd cwl-ts-auto
+          npm install
+          npm test
+
+  cpp:
+    name: Confirm that codegen C++ passes tests with CWL
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Install C++ dependencies
+        run: sudo apt-get install libyaml-cpp-dev
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            tox.ini
+      - name: Upgrade setuptools and install schema-salad
+        run: |
+          pip install -U pip setuptools wheel
+          pip install .
+      - name: Download cwl-cpp-auto for its tests
+        run: |
+          wget "https://github.com/common-workflow-lab/cwl-cpp-auto/archive/refs/heads/main.zip"
+          unzip main.zip
+      - name: Generate cwl-cpp-auto and run tests
+        run: |
+          cd cwl-cpp-auto-main
+          make cwl_v1_2.h tests CXXFLAGS=-std=c++17
+
   release_test:
     name: Schema Salad release test
 
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@v4
@@ -133,10 +190,12 @@ jobs:
         run: ./release-test.sh
 
   build_test_container:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: record schema-salad version
-        run: pip install -U setuptools wheel && pip install setuptools_scm[toml] && python setup.py --version
+        run: |
+          python3 -m venv env
+          source env/bin/activate && pip install -U setuptools wheel && pip install setuptools_scm[toml] && python setup.py --version
       - name: build & test schema_salad container
         run: ./build-schema_salad-docker.sh
