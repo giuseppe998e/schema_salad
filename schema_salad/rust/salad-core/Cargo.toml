@@ -1,0 +1,34 @@
+[workspace]
+members = ["crates/*"]
+resolver = "2"
+
+[workspace.package]
+license = "Apache-2.0"
+authors = ["Giuseppe Eletto <giuseppe.eletto98@gmail.com>"]
+edition = "2021"
+
+[workspace.dependencies]
+compact_str = { version = "0.8.0" }
+fxhash = { version = "0.2.1" }
+salad-dsl = { path = "crates/dsl" }
+salad-macro = { path = "crates/macro" }
+salad-types = { path = "crates/types" }
+serde = { version = "1.0.215", features = ["std"] }
+
+[package]
+name = "salad-core"
+version = "0.1.0"
+description = "Core block for SchemaSalad-generated parsers."
+license.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[lib]
+name = "salad_core"
+path = "src/lib.rs"
+
+[dependencies]
+salad-dsl.workspace = true
+salad-macro.workspace = true
+salad-types.workspace = true
+serde.workspace = true

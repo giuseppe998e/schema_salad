@@ -1,0 +1,9 @@
+[package]
+name = "salad-types"
+version = "0.1.0"
+license.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+# TDB
