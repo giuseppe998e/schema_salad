@@ -4,6 +4,10 @@ version = "0.1.0"
 license.workspace = true
 authors.workspace = true
 edition.workspace = true
+publish = false
+
+[lib]
+proc-macro = true
 
 [dependencies]
 # TDB
