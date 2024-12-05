@@ -4,6 +4,9 @@ version = "0.1.0"
 license.workspace = true
 authors.workspace = true
 edition.workspace = true
+publish = false
 
 [dependencies]
-# TDB
+compact_str.workspace = true
+fxhash.workspace = true
+serde.workspace = true
