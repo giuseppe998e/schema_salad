@@ -1,14 +1,9 @@
-use std::{collections::hash_map, ops::RangeInclusive, slice};
+use std::{collections::hash_map, slice};
 
 use compact_str::CompactString;
 use serde::de;
 
 use super::{SaladAny, SaladObject, SaladTypeDowncastError};
-use crate::primitive::{SaladDouble, SaladFloat, SaladInt, SaladLong};
-
-const INT_RANGE: RangeInclusive<i64> = SaladInt::MIN as SaladLong..=SaladInt::MAX as SaladLong;
-const FLOAT_RANGE: RangeInclusive<f64> =
-    SaladFloat::MIN as SaladDouble..=SaladFloat::MAX as SaladDouble;
 
 /// TODO ...
 pub(super) struct SaladAnyDeserializer<'de>(pub &'de SaladAny);
@@ -21,7 +16,7 @@ impl<'de> de::Deserializer<'de> for SaladAnyDeserializer<'de> {
             SaladAny::Bool(b) => visitor.visit_bool(*b),
             SaladAny::Int(i) => visitor.visit_i32(*i),
             SaladAny::Long(l) => {
-                if INT_RANGE.contains(l) {
+                if super::INT_RANGE.contains(l) {
                     visitor.visit_i32(*l as i32)
                 } else {
                     visitor.visit_i64(*l)
@@ -29,7 +24,7 @@ impl<'de> de::Deserializer<'de> for SaladAnyDeserializer<'de> {
             }
             SaladAny::Float(f) => visitor.visit_f32(*f),
             SaladAny::Double(d) => {
-                if FLOAT_RANGE.contains(d) {
+                if super::FLOAT_RANGE.contains(d) {
                     visitor.visit_f32(*d as f32)
                 } else {
                     visitor.visit_f64(*d)
@@ -71,7 +66,7 @@ impl<'de> de::Deserializer<'de> for SaladAnyDeserializer<'de> {
 
         match self.0 {
             SaladAny::Int(i) => visitor.visit_i32(*i),
-            SaladAny::Long(l) if INT_RANGE.contains(l) => visitor.visit_i32(*l as i32),
+            SaladAny::Long(l) if super::INT_RANGE.contains(l) => visitor.visit_i32(*l as i32),
 
             // Errors
             SaladAny::Bool(b) => Err(de::Error::invalid_type(de::Unexpected::Bool(*b), ERR_MSG)),
@@ -112,7 +107,7 @@ impl<'de> de::Deserializer<'de> for SaladAnyDeserializer<'de> {
 
         match self.0 {
             SaladAny::Float(f) => visitor.visit_f32(*f),
-            SaladAny::Double(d) if FLOAT_RANGE.contains(d) => visitor.visit_f32(*d as f32),
+            SaladAny::Double(d) if super::FLOAT_RANGE.contains(d) => visitor.visit_f32(*d as f32),
 
             // Errors
             SaladAny::Bool(b) => Err(de::Error::invalid_type(de::Unexpected::Bool(*b), ERR_MSG)),
