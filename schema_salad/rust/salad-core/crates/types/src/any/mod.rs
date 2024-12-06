@@ -38,8 +38,8 @@ pub enum SaladAny {
 
 impl SaladAny {
     /// Attempts to downcast to type `T` from a borrowed `SaladAny`.
-    /// N.B. When downcasting to a primitive (or object) type, consider using the
-    /// `TryFrom::try_from` method.
+    /// N.B. When downcasting to a primitive (or object) type, consider using
+    /// a `match` expression or the `TryFrom::try_from` method.
     ///
     /// Returns a `Result` containing the downcasted value of type `T` if successful,
     /// or a `SaladTypeDowncastError` if the downcast fails.
@@ -52,8 +52,8 @@ impl SaladAny {
     }
 
     /// Attempts to downcast from a consumed `SaladAny` to type `T`.
-    /// N.B. When downcasting to a primitive (or object) type, consider using the
-    /// `TryFrom::try_from` method.
+    /// N.B. When downcasting to a primitive (or object) type, consider using
+    /// a `match` expression or the `TryFrom::try_from` method.
     ///
     /// Returns a `Result` containing the downcasted value of type `T` if successful,
     /// or a `SaladTypeDowncastError` if the downcast fails.
