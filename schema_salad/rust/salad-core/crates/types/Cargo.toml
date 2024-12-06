@@ -10,3 +10,6 @@ publish = false
 compact_str = { workspace = true, features = ["serde"] }
 fxhash.workspace = true
 serde.workspace = true
+
+[dev-dependencies]
+serde_yml.workspace = true
