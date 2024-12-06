@@ -5,6 +5,7 @@ macro_rules! impl_from_traits {
     ) => {
         $(
             impl From<$subty> for $ty {
+                #[inline]
                 fn from(value: $subty) -> Self {
                     Self::$ident(value)
                 }
