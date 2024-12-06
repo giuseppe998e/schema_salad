@@ -76,7 +76,11 @@ mod tests {
                 .unwrap(),
             30
         );
-        assert!(obj.get("likes_pizza").unwrap().downcast::<bool>().unwrap());
+        assert!(obj
+            .get("likes_pizza")
+            .unwrap()
+            .downcast::<primitive::SaladBool>()
+            .unwrap());
     }
 
     #[test]
