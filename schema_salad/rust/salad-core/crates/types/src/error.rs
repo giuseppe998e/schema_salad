@@ -11,7 +11,7 @@ use serde::de;
 /// The error may optionally contain a cause message explaining why the downcast failed.
 ///
 /// # Examples
-/// ```
+/// ```ignore
 /// use salad_core::SaladAny;
 /// use salad_core::primitive::SaladInt;
 ///

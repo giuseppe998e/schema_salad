@@ -7,6 +7,6 @@ edition.workspace = true
 publish = false
 
 [dependencies]
-compact_str.workspace = true
+compact_str = { workspace = true, features = ["serde"] }
 fxhash.workspace = true
 serde.workspace = true

@@ -41,7 +41,7 @@ impl SaladType for SaladString {}
 
 impl From<String> for SaladString {
     fn from(value: String) -> Self {
-        Self(CompactString::from_string_buffer(value))
+        Self(CompactString::from(value))
     }
 }
 
@@ -236,55 +236,15 @@ impl fmt::Display for SaladString {
 }
 
 impl ser::Serialize for SaladString {
+    #[inline]
     fn serialize<S: ser::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(self)
+        CompactString::serialize(&self.0, serializer)
     }
 }
 
 impl<'de> de::Deserialize<'de> for SaladString {
+    #[inline]
     fn deserialize<D: de::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct SaladStringVisitor;
-
-        impl de::Visitor<'_> for SaladStringVisitor {
-            type Value = SaladString;
-
-            fn expecting(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-                f.write_str("a string")
-            }
-
-            fn visit_string<E: de::Error>(self, v: String) -> Result<Self::Value, E> {
-                Ok(SaladString(CompactString::from_string_buffer(v)))
-            }
-
-            fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
-                Ok(SaladString(CompactString::new(v)))
-            }
-
-            fn visit_borrowed_str<E: de::Error>(self, v: &'_ str) -> Result<Self::Value, E> {
-                Ok(SaladString(CompactString::new(v)))
-            }
-
-            fn visit_byte_buf<E: de::Error>(self, v: Vec<u8>) -> Result<Self::Value, E> {
-                String::from_utf8(v)
-                    .map(|v| SaladString(CompactString::from_string_buffer(v)))
-                    .map_err(|e| {
-                        de::Error::invalid_value(de::Unexpected::Bytes(&e.into_bytes()), &self)
-                    })
-            }
-
-            fn visit_bytes<E: de::Error>(self, v: &[u8]) -> Result<Self::Value, E> {
-                core::str::from_utf8(v)
-                    .map(|v| SaladString(CompactString::new(v)))
-                    .map_err(|_| de::Error::invalid_value(de::Unexpected::Bytes(v), &self))
-            }
-
-            fn visit_borrowed_bytes<E: de::Error>(self, v: &'_ [u8]) -> Result<Self::Value, E> {
-                core::str::from_utf8(v)
-                    .map(|v| SaladString(CompactString::new(v)))
-                    .map_err(|_| de::Error::invalid_value(de::Unexpected::Bytes(v), &self))
-            }
-        }
-
-        deserializer.deserialize_str(SaladStringVisitor)
+        CompactString::deserialize(deserializer).map(Self)
     }
 }

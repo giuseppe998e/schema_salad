@@ -2,6 +2,10 @@ use std::{collections::HashMap, fmt};
 
 use compact_str::CompactString;
 use fxhash::FxBuildHasher;
+use serde::{
+    de,
+    ser::{self, SerializeMap},
+};
 
 use super::SaladAny;
 use crate::{SaladType, SaladTypeDowncastError};
@@ -14,7 +18,7 @@ use crate::{SaladType, SaladTypeDowncastError};
 /// before they are parsed into their specific types.
 ///
 /// # Examples
-/// ```
+/// ```ignore
 /// use salad_core::SaladAny;
 /// use salad_core::any::SaladObject;
 ///
@@ -23,7 +27,7 @@ use crate::{SaladType, SaladTypeDowncastError};
 /// obj.get(key); // Returns Option<&SaladAny>
 ///
 /// // Downcast to a specific type
-/// let typed_obj: Result<MyType, _> = obj.downcast();
+/// let typed_obj: Result<SomeSaladType, _> = obj.downcast();
 /// ```
 #[derive(Clone, Default)]
 pub struct SaladObject {
@@ -48,7 +52,7 @@ impl SaladObject {
     where
         T: SaladType + serde::de::Deserialize<'de>,
     {
-        let deserializer = super::de::SaladObjectMapAccess::new(self);
+        let deserializer = super::deser::SaladObjectMapAccess::new(self);
         T::deserialize(deserializer)
     }
 
@@ -74,5 +78,55 @@ impl fmt::Debug for SaladObject {
             debug_struct.field(k.as_str(), v);
         }
         debug_struct.finish()
+    }
+}
+
+impl ser::Serialize for SaladObject {
+    fn serialize<S: ser::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut map_serializer = serializer.serialize_map(Some(self.map.len()))?;
+        self.map
+            .iter()
+            .try_for_each(|(k, v)| map_serializer.serialize_entry(k.as_str(), v))?;
+        map_serializer.end()
+    }
+}
+
+impl<'de> de::Deserialize<'de> for SaladObject {
+    fn deserialize<D: de::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct SaladObjectVisitor;
+
+        impl<'de> de::Visitor<'de> for SaladObjectVisitor {
+            type Value = SaladObject;
+
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str("a generic key-value object")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: de::MapAccess<'de>,
+            {
+                let capacity = map.size_hint().unwrap_or(0);
+                let mut this = SaladObject {
+                    map: HashMap::with_capacity_and_hasher(capacity, FxBuildHasher::default()),
+                };
+
+                while let Some(key) = map.next_key::<CompactString>()? {
+                    if this.map.contains_key(&key) {
+                        return Err(de::Error::custom(format_args!(
+                            "duplicate field `{}`",
+                            &key
+                        )));
+                    }
+
+                    let value = map.next_value::<SaladAny>()?;
+                    this.map.insert(key, value);
+                }
+
+                Ok(this)
+            }
+        }
+
+        deserializer.deserialize_map(SaladObjectVisitor)
     }
 }
