@@ -2,7 +2,7 @@ macro_rules! string_match_struct {
     (
         $(
             $( #[$attrs:meta] )*
-            $value:literal => $ident:ident
+            $ident:ident($value:literal)
         ),* $(,)?
     ) => {
         $(
@@ -81,11 +81,11 @@ macro_rules! string_match_struct {
 
 string_match_struct! {
     /// Matches constant value `array`.
-    "array" => ArrayName,
+    ArrayName("array"),
 
     /// Matches constant value `enum`.
-    "enum" => EnumName,
+    EnumName("enum"),
 
     /// Matches constant value `record`.
-    "record" => RecordName,
+    RecordName("record"),
 }

@@ -72,7 +72,9 @@ impl<'de> de::Deserialize<'de> for PrimitiveType {
             type Value = PrimitiveType;
 
             fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                f.write_str("")
+                f.write_str(
+                    "any of the following strings: 'null', 'boolean', 'int', 'long', 'float', 'double', 'string'"
+                )
             }
 
             fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
