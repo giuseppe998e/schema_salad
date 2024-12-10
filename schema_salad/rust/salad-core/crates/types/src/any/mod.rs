@@ -3,7 +3,7 @@ mod object;
 
 use std::fmt;
 
-use serde::{de, ser, Deserialize};
+use serde::{de, ser};
 
 pub use self::object::SaladObject;
 use crate::{
@@ -173,7 +173,7 @@ impl<'de> de::Deserialize<'de> for SaladAny {
                 A: de::MapAccess<'de>,
             {
                 let deserializer = de::value::MapAccessDeserializer::new(map);
-                SaladObject::deserialize(deserializer).map(SaladAny::Object)
+                <SaladObject as de::Deserialize>::deserialize(deserializer).map(SaladAny::Object)
             }
 
             fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
@@ -181,7 +181,7 @@ impl<'de> de::Deserialize<'de> for SaladAny {
                 A: de::SeqAccess<'de>,
             {
                 let deserializer = de::value::SeqAccessDeserializer::new(seq);
-                Box::<[SaladAny]>::deserialize(deserializer).map(SaladAny::List)
+                <Box::<[SaladAny]> as de::Deserialize>::deserialize(deserializer).map(SaladAny::List)
             }
         }
 

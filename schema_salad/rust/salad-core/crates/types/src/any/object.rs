@@ -1,10 +1,10 @@
-use std::{collections::HashMap, fmt};
+use std::{borrow::Borrow, collections::HashMap, fmt};
 
 use compact_str::CompactString;
 use fxhash::FxBuildHasher;
 use serde::{
     de,
-    ser::{self, SerializeMap},
+    ser::{self, SerializeMap as _},
 };
 
 use super::SaladAny;
@@ -39,8 +39,8 @@ impl SaladObject {
     ///
     /// Returns an `Option` containing a reference to the value if found,
     /// or `None` if the key does not exist.
-    pub fn get<S: AsRef<str>>(&self, key: S) -> Option<&SaladAny> {
-        let key = key.as_ref();
+    pub fn get<S: Borrow<str> + ?Sized>(&self, key: &S) -> Option<&SaladAny> {
+        let key = key.borrow();
         self.map.get(key)
     }
 
@@ -50,7 +50,7 @@ impl SaladObject {
     /// or a `SaladTypeDowncastError` if the downcast fails.
     pub fn downcast<'de, T>(&'de self) -> Result<T, SaladTypeDowncastError>
     where
-        T: SaladType + serde::de::Deserialize<'de>,
+        T: SaladType + de::Deserialize<'de>,
     {
         let deserializer = super::deser::SaladObjectMapAccess::new(self);
         T::deserialize(deserializer)
@@ -63,7 +63,7 @@ impl SaladObject {
     #[inline]
     pub fn downcast_into<T>(self) -> Result<T, SaladTypeDowncastError>
     where
-        for<'de> T: SaladType + serde::de::Deserialize<'de>,
+        for<'de> T: SaladType + de::Deserialize<'de>,
     {
         Self::downcast(&self)
     }
