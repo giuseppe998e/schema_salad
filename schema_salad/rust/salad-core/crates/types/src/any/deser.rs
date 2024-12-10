@@ -3,13 +3,13 @@ use std::{collections::hash_map, slice};
 use compact_str::CompactString;
 use serde::de;
 
-use super::{SaladAny, SaladObject, SaladTypeDowncastError};
+use super::{SaladAny, SaladObject, SaladDowncastError};
 
 /// TODO ...
 pub(super) struct SaladAnyDeserializer<'de>(pub &'de SaladAny);
 
 impl<'de> de::Deserializer<'de> for SaladAnyDeserializer<'de> {
-    type Error = SaladTypeDowncastError;
+    type Error = SaladDowncastError;
 
     fn deserialize_any<V: de::Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         match self.0 {
@@ -215,75 +215,75 @@ impl<'de> de::Deserializer<'de> for SaladAnyDeserializer<'de> {
     // Unimplemented/Unnecessary
 
     fn deserialize_i8<V: de::Visitor<'de>>(self, _: V) -> Result<V::Value, Self::Error> {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_i16<V: de::Visitor<'de>>(self, _: V) -> Result<V::Value, Self::Error> {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_u8<V: de::Visitor<'de>>(self, _: V) -> Result<V::Value, Self::Error> {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_u16<V: de::Visitor<'de>>(self, _: V) -> Result<V::Value, Self::Error> {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_u32<V: de::Visitor<'de>>(self, _: V) -> Result<V::Value, Self::Error> {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_u64<V: de::Visitor<'de>>(self, _: V) -> Result<V::Value, Self::Error> {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_char<V: de::Visitor<'de>>(self, _: V) -> Result<V::Value, Self::Error> {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_string<V: de::Visitor<'de>>(self, _: V) -> Result<V::Value, Self::Error> {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_bytes<V: de::Visitor<'de>>(self, _: V) -> Result<V::Value, Self::Error> {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_byte_buf<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_option<V: de::Visitor<'de>>(self, _: V) -> Result<V::Value, Self::Error> {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_unit<V: de::Visitor<'de>>(self, _: V) -> Result<V::Value, Self::Error> {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_unit_struct<V>(self, _: &'static str, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_newtype_struct<V>(self, _: &'static str, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_tuple<V>(self, _: usize, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_tuple_struct<V>(
@@ -295,7 +295,7 @@ impl<'de> de::Deserializer<'de> for SaladAnyDeserializer<'de> {
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_struct<V>(
@@ -307,7 +307,7 @@ impl<'de> de::Deserializer<'de> for SaladAnyDeserializer<'de> {
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_enum<V>(
@@ -319,21 +319,21 @@ impl<'de> de::Deserializer<'de> for SaladAnyDeserializer<'de> {
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_identifier<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_ignored_any<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 }
 
@@ -353,7 +353,7 @@ impl<'de> SaladObjectMapAccess<'de> {
 }
 
 impl<'de> de::Deserializer<'de> for SaladObjectMapAccess<'de> {
-    type Error = SaladTypeDowncastError;
+    type Error = SaladDowncastError;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
@@ -375,154 +375,154 @@ impl<'de> de::Deserializer<'de> for SaladObjectMapAccess<'de> {
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_i8<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_i16<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_i32<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_i64<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_u8<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_u16<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_u32<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_u64<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_f32<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_f64<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_char<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_str<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_string<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_bytes<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_byte_buf<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_option<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_unit<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_unit_struct<V>(self, _: &'static str, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_newtype_struct<V>(self, _: &'static str, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_seq<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_tuple<V>(self, _: usize, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_tuple_struct<V>(
@@ -534,7 +534,7 @@ impl<'de> de::Deserializer<'de> for SaladObjectMapAccess<'de> {
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_struct<V>(
@@ -546,7 +546,7 @@ impl<'de> de::Deserializer<'de> for SaladObjectMapAccess<'de> {
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_enum<V>(
@@ -558,26 +558,26 @@ impl<'de> de::Deserializer<'de> for SaladObjectMapAccess<'de> {
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_identifier<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_ignored_any<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 }
 
 impl<'de> de::MapAccess<'de> for SaladObjectMapAccess<'de> {
-    type Error = SaladTypeDowncastError;
+    type Error = SaladDowncastError;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
     where
@@ -599,7 +599,7 @@ impl<'de> de::MapAccess<'de> for SaladObjectMapAccess<'de> {
     where
         V: de::DeserializeSeed<'de>,
     {
-        let value = self.value.ok_or(SaladTypeDowncastError::new())?;
+        let value = self.value.ok_or(SaladDowncastError::new())?;
         seed.deserialize(SaladAnyDeserializer(value))
     }
 }
@@ -608,7 +608,7 @@ impl<'de> de::MapAccess<'de> for SaladObjectMapAccess<'de> {
 struct CompactStringDeserializer<'de>(&'de CompactString);
 
 impl<'de> de::Deserializer<'de> for CompactStringDeserializer<'de> {
-    type Error = SaladTypeDowncastError;
+    type Error = SaladDowncastError;
 
     fn deserialize_any<V: de::Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         visitor.visit_borrowed_str(self.0.as_str())
@@ -649,126 +649,126 @@ impl<'de> de::Deserializer<'de> for CompactStringDeserializer<'de> {
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_i8<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_i16<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_i32<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_i64<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_u8<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_u16<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_u32<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_u64<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_f32<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_f64<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_char<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_option<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_unit<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_unit_struct<V>(self, _: &'static str, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_newtype_struct<V>(self, _: &'static str, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_seq<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_tuple<V>(self, _: usize, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_tuple_struct<V>(
@@ -780,14 +780,14 @@ impl<'de> de::Deserializer<'de> for CompactStringDeserializer<'de> {
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_map<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_struct<V>(
@@ -799,7 +799,7 @@ impl<'de> de::Deserializer<'de> for CompactStringDeserializer<'de> {
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_enum<V>(
@@ -811,14 +811,14 @@ impl<'de> de::Deserializer<'de> for CompactStringDeserializer<'de> {
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 
     fn deserialize_ignored_any<V>(self, _: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        Err(SaladTypeDowncastError::new())
+        Err(SaladDowncastError::new())
     }
 }
 
@@ -834,7 +834,7 @@ impl<'de> SaladAnyListSeqAccess<'de> {
 }
 
 impl<'de> de::SeqAccess<'de> for SaladAnyListSeqAccess<'de> {
-    type Error = SaladTypeDowncastError;
+    type Error = SaladDowncastError;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
     where

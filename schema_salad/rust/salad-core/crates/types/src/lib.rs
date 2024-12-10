@@ -6,7 +6,7 @@ mod util;
 
 pub use self::{
     any::{SaladAny, SaladObject},
-    error::SaladTypeDowncastError,
+    error::SaladDowncastError,
 };
 
 /// A marker trait for Schema Salad data types.

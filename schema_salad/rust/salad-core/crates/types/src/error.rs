@@ -2,8 +2,6 @@ use std::{error::Error, fmt};
 
 use serde::de;
 
-/// Error type used when a type downcast operation fails.
-///
 /// This error occurs when attempting to convert a value from a more general type
 /// to a more specific type (_downcast_) and the conversion is not possible. For example,
 /// when trying to convert a `SaladAny` containing a string value into a numeric type.
@@ -20,17 +18,17 @@ use serde::de;
 /// assert!(result.is_err()); // Error, cannot downcast SaladString to SaladInt
 /// ```
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct SaladTypeDowncastError {
+pub struct SaladDowncastError {
     cause: Option<String>,
 }
 
-impl SaladTypeDowncastError {
+impl SaladDowncastError {
     pub const fn new() -> Self {
         Self { cause: None }
     }
 }
 
-impl fmt::Display for SaladTypeDowncastError {
+impl fmt::Display for SaladDowncastError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.cause {
             Some(cause) => write!(f, "could not downcast, {cause}"),
@@ -39,9 +37,9 @@ impl fmt::Display for SaladTypeDowncastError {
     }
 }
 
-impl Error for SaladTypeDowncastError {}
+impl Error for SaladDowncastError {}
 
-impl de::Error for SaladTypeDowncastError {
+impl de::Error for SaladDowncastError {
     fn custom<T: fmt::Display>(msg: T) -> Self {
         Self {
             cause: Some(msg.to_string()),

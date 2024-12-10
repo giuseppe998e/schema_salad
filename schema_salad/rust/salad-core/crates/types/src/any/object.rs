@@ -8,7 +8,7 @@ use serde::{
 };
 
 use super::SaladAny;
-use crate::{SaladType, SaladTypeDowncastError};
+use crate::{SaladType, SaladDowncastError};
 
 /// A key-value map representing an untyped Schema Salad object.
 ///
@@ -48,7 +48,7 @@ impl SaladObject {
     ///
     /// Returns a `Result` containing the downcasted value of type `T` if successful,
     /// or a `SaladTypeDowncastError` if the downcast fails.
-    pub fn downcast<'de, T>(&'de self) -> Result<T, SaladTypeDowncastError>
+    pub fn downcast<'de, T>(&'de self) -> Result<T, SaladDowncastError>
     where
         T: SaladType + de::Deserialize<'de>,
     {
@@ -61,7 +61,7 @@ impl SaladObject {
     /// Returns a `Result` containing the downcasted value of type `T` if successful,
     /// or a `SaladTypeDowncastError` if the downcast fails.
     #[inline]
-    pub fn downcast_into<T>(self) -> Result<T, SaladTypeDowncastError>
+    pub fn downcast_into<T>(self) -> Result<T, SaladDowncastError>
     where
         for<'de> T: SaladType + de::Deserialize<'de>,
     {

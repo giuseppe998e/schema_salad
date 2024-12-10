@@ -7,7 +7,7 @@ use serde::{de, ser};
 pub use self::string::SaladString;
 use crate::{
     util::{FLOAT_RANGE, INT_RANGE},
-    SaladType, SaladTypeDowncastError,
+    SaladType, SaladDowncastError,
 };
 
 /// A binary value.
@@ -50,7 +50,7 @@ pub enum SaladPrimitive {
 impl SaladType for SaladPrimitive {}
 
 crate::util::impl_from_traits! {
-    (SaladPrimitive, SaladTypeDowncastError)
+    (SaladPrimitive, SaladDowncastError)
 
     Bool => SaladBool,
     Int => SaladInt,

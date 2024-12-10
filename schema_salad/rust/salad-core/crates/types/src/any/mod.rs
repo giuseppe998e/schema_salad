@@ -9,7 +9,7 @@ pub use self::object::SaladObject;
 use crate::{
     primitive::{SaladBool, SaladDouble, SaladFloat, SaladInt, SaladLong, SaladString},
     util::{FLOAT_RANGE, INT_RANGE},
-    SaladType, SaladTypeDowncastError,
+    SaladType, SaladDowncastError,
 };
 
 /// The `SaladAny` type validates for any non-null value.
@@ -40,7 +40,7 @@ impl SaladAny {
     ///
     /// Returns a `Result` containing the downcasted value of type `T` if successful,
     /// or a `SaladTypeDowncastError` if the downcast fails.
-    pub fn downcast<'de, T>(&'de self) -> Result<T, SaladTypeDowncastError>
+    pub fn downcast<'de, T>(&'de self) -> Result<T, SaladDowncastError>
     where
         T: SaladType + de::Deserialize<'de>,
     {
@@ -55,7 +55,7 @@ impl SaladAny {
     /// Returns a `Result` containing the downcasted value of type `T` if successful,
     /// or a `SaladTypeDowncastError` if the downcast fails.
     #[inline]
-    pub fn downcast_into<T>(self) -> Result<T, SaladTypeDowncastError>
+    pub fn downcast_into<T>(self) -> Result<T, SaladDowncastError>
     where
         for<'de> T: SaladType + de::Deserialize<'de>,
     {
@@ -66,7 +66,7 @@ impl SaladAny {
 impl SaladType for SaladAny {}
 
 crate::util::impl_from_traits! {
-    (SaladAny, SaladTypeDowncastError)
+    (SaladAny, SaladDowncastError)
 
     Bool => SaladBool,
     Int => SaladInt,
