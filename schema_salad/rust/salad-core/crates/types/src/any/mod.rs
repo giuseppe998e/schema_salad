@@ -1,19 +1,16 @@
 mod deser;
 mod object;
 
-use std::{fmt, ops::RangeInclusive};
+use std::fmt;
 
 use serde::{de, ser, Deserialize};
 
 pub use self::object::SaladObject;
 use crate::{
     primitive::{SaladBool, SaladDouble, SaladFloat, SaladInt, SaladLong, SaladString},
+    util::{FLOAT_RANGE, INT_RANGE},
     SaladType, SaladTypeDowncastError,
 };
-
-const INT_RANGE: RangeInclusive<i64> = SaladInt::MIN as SaladLong..=SaladInt::MAX as SaladLong;
-const FLOAT_RANGE: RangeInclusive<f64> =
-    SaladFloat::MIN as SaladDouble..=SaladFloat::MAX as SaladDouble;
 
 /// The `SaladAny` type validates for any non-null value.
 #[derive(Debug, Clone)]
