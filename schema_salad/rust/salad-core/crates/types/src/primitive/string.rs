@@ -12,7 +12,7 @@ use serde::{de, ser};
 
 use crate::SaladType;
 
-/// Unicode character sequence, a string.
+/// Unicode character sequence.
 #[repr(transparent)]
 #[derive(Clone, Default)]
 pub struct SaladString(CompactString);

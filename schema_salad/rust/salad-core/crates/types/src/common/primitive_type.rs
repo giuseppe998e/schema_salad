@@ -34,7 +34,7 @@ pub enum PrimitiveType {
     ///
     /// Matches constant value `double`.
     Double,
-    /// Unicode character sequence, a string.
+    /// Unicode character sequence.
     ///
     /// Matches constant value `string`.
     String,

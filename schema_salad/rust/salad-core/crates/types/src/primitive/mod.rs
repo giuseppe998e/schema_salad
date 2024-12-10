@@ -43,7 +43,7 @@ pub enum SaladPrimitive {
     Float(SaladFloat),
     /// Double precision (64-bit) IEEE 754 floating-point number.
     Double(SaladDouble),
-    /// Unicode character sequence, a string.
+    /// Unicode character sequence.
     String(SaladString),
 }
 
