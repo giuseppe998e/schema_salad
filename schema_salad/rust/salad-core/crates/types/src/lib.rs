@@ -36,7 +36,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::approx_constant)]
     fn test_deserialize_float() {
         let yaml = "3.14";
         let any = serde_yml::from_str::<SaladAny>(yaml).unwrap();
@@ -50,6 +49,29 @@ mod tests {
         let any = serde_yml::from_str::<SaladAny>(yaml).unwrap();
         let s = any.downcast::<primitive::SaladString>().unwrap();
         assert_eq!(s, "hello world");
+    }
+
+    #[test]
+    fn test_deserialize_primitive() {
+        let yaml = "42";
+        let any = serde_yml::from_str::<SaladAny>(yaml).unwrap();
+        let primitive = any.downcast::<primitive::SaladPrimitive>().unwrap();
+        assert_eq!(primitive.to_string(), "42");
+
+        let yaml = "true";
+        let any = serde_yml::from_str::<SaladAny>(yaml).unwrap();
+        let primitive = any.downcast::<primitive::SaladPrimitive>().unwrap();
+        assert_eq!(primitive.to_string(), "true");
+
+        let yaml = "3.14";
+        let any = serde_yml::from_str::<SaladAny>(yaml).unwrap();
+        let primitive = any.downcast::<primitive::SaladPrimitive>().unwrap();
+        assert_eq!(primitive.to_string(), "3.14");
+
+        let yaml = "hello";
+        let any = serde_yml::from_str::<SaladAny>(yaml).unwrap();
+        let primitive = any.downcast::<primitive::SaladPrimitive>().unwrap();
+        assert_eq!(primitive.to_string(), "hello");
     }
 
     #[test]
