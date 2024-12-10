@@ -50,7 +50,7 @@ macro_rules! string_match_struct {
                                 $value => Ok($ident),
                                 _ => Err(serde::de::Error::invalid_value(
                                     serde::de::Unexpected::Str(v),
-                                    &$value,
+                                    &self,
                                 )),
                             }
                         }
@@ -65,7 +65,7 @@ macro_rules! string_match_struct {
                                 VALUE_BYTES => Ok($ident),
                                 _ => Err(serde::de::Error::invalid_value(
                                     serde::de::Unexpected::Bytes(v),
-                                    &$value,
+                                    &self,
                                 )),
                             }
                         }

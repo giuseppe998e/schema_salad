@@ -88,7 +88,7 @@ impl<'de> de::Deserialize<'de> for PrimitiveType {
                     "string" => Ok(PrimitiveType::String),
                     _ => Err(de::Error::invalid_value(
                         de::Unexpected::Str(v),
-                        &"a primitive type name",
+                        &self,
                     )),
                 }
             }
@@ -104,7 +104,7 @@ impl<'de> de::Deserialize<'de> for PrimitiveType {
                     b"string" => Ok(PrimitiveType::String),
                     _ => Err(de::Error::invalid_value(
                         de::Unexpected::Bytes(v),
-                        &"a primitive type name",
+                        &self,
                     )),
                 }
             }
