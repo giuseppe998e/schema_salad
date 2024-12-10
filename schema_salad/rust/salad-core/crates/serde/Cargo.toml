@@ -1,0 +1,15 @@
+[package]
+name = "salad-serde"
+version = "0.1.0"
+license.workspace = true
+authors.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+salad-types.workspace = true
+compact_str = { workspace = true, features = ["serde"] }
+serde.workspace = true
+
+[dev-dependencies]
+serde_yml.workspace = true

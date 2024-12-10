@@ -12,6 +12,7 @@ compact_str = { version = "0.8.0" }
 fxhash = { version = "0.2.1" }
 salad-dsl = { path = "crates/dsl" }
 salad-macro = { path = "crates/macro" }
+salad-serde = { path = "crates/serde" }
 salad-types = { path = "crates/types" }
 serde = { version = "1.0.215", features = ["std"] }
 serde_yml = { version = "0.0.12" }
@@ -31,5 +32,5 @@ path = "src/lib.rs"
 [dependencies]
 salad-dsl.workspace = true
 salad-macro.workspace = true
+salad-serde.workspace = true
 salad-types.workspace = true
-serde.workspace = true
