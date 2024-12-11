@@ -174,11 +174,11 @@ mod tests {
     #[test]
     fn list_entries() {
         let input = r#"
-            - class: class_one
+            - class: class_1
               key: value_1
-            - class: class_two
+            - class: class_2
               key: value_2
-            - class: class_three
+            - class: class_3
               key: value_3
         "#;
 
@@ -199,11 +199,11 @@ mod tests {
     #[test]
     fn map_entries() {
         let input = r#"
-            class_one:
+            class_1:
                 key: value_1
-            class_two:
+            class_2:
                 key: value_2
-            class_three:
+            class_3:
                 key: value_3
         "#;
 
@@ -224,9 +224,9 @@ mod tests {
     #[test]
     fn map_entries_with_predicate() {
         let input = r#"
-            class_one: value_1
-            class_two: value_2
-            class_three:
+            class_1: value_1
+            class_2: value_2
+            class_3:
                 key: value_3
         "#;
 
