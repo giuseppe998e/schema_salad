@@ -13,7 +13,7 @@ use crate::{
 };
 
 /// The `SaladAny` type validates for any non-null value.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum SaladAny {
     /// A binary value.
     Bool(SaladBool),

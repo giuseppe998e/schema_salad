@@ -29,7 +29,7 @@ use crate::{SaladType, SaladDowncastError};
 /// // Downcast to a specific type
 /// let typed_obj: Result<SomeSaladType, _> = obj.downcast();
 /// ```
-#[derive(Clone, Default)]
+#[derive(Clone, Default, PartialEq)]
 pub struct SaladObject {
     pub(super) map: HashMap<CompactString, SaladAny, FxBuildHasher>,
 }
