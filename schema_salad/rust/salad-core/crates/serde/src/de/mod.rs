@@ -10,11 +10,15 @@ use serde::de;
 use self::list::ListDeserializeSeed;
 pub use self::{data::SeedData, map::MapDeserializeSeed};
 
-/// TODO ...
+/// Represents a type that can be converted into a serde
+/// [`DeserializeSeed`](https://docs.rs/serde/latest/serde/de/trait.DeserializeSeed.html).
+#[doc(hidden)]
 pub trait IntoDeserializeSeed<'de, 'sd> {
     type DeserializeSeed: de::DeserializeSeed<'de, Value = Self>;
 
-    /// TODO ...
+    /// Returns a
+    /// [`DeserializeSeed`](https://docs.rs/serde/latest/serde/de/trait.DeserializeSeed.html)
+    /// instance from a [`SeedData`] reference that's able to deserialize this type.
     fn deserialize_seed(data: &'sd SeedData) -> Self::DeserializeSeed;
 }
 
