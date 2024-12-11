@@ -8,7 +8,6 @@ publish = false
 
 [dependencies]
 salad-types.workspace = true
-compact_str = { workspace = true, features = ["serde"] }
 serde.workspace = true
 
 [dev-dependencies]
