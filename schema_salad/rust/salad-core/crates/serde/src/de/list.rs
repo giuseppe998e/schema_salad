@@ -166,7 +166,7 @@ where
             where
                 A: de::SeqAccess<'de>,
             {
-                let capacity = seq.size_hint().unwrap_or(0);
+                let capacity = seq.size_hint().unwrap_or(1);
                 let mut entries = Vec::with_capacity(capacity);
 
                 while let Some(entry) = seq.next_element_seed(T::deserialize_seed(self.data))? {
@@ -203,11 +203,12 @@ mod tests {
             ContentDeserializer::new(content)
         };
 
-        assert!(de::DeserializeSeed::deserialize(
+        let object = de::DeserializeSeed::deserialize(
             <Box<[SaladAny]>>::deserialize_seed(&SeedData),
-            deserializer
-        )
-        .is_ok())
+            deserializer,
+        );
+
+        assert!(object.is_ok_and(|r| matches!(r[0], SaladAny::Object(_))))
     }
 
     #[test]
@@ -219,11 +220,12 @@ mod tests {
             ContentDeserializer::new(content)
         };
 
-        assert!(de::DeserializeSeed::deserialize(
+        let string = de::DeserializeSeed::deserialize(
             <Box<[SaladAny]>>::deserialize_seed(&SeedData),
-            deserializer
-        )
-        .is_ok())
+            deserializer,
+        );
+
+        assert!(string.is_ok_and(|r| matches!(r[0], SaladAny::String(_))))
     }
 
     #[test]
@@ -242,10 +244,13 @@ mod tests {
             ContentDeserializer::new(content)
         };
 
-        assert!(de::DeserializeSeed::deserialize(
+        let string = de::DeserializeSeed::deserialize(
             <Box<[SaladAny]>>::deserialize_seed(&SeedData),
-            deserializer
-        )
-        .is_ok())
+            deserializer,
+        );
+
+        assert!(string.is_ok_and(
+            |r| matches!(r[1], SaladAny::Float(_)) && matches!(r[3], SaladAny::String(_))
+        ))
     }
 }
