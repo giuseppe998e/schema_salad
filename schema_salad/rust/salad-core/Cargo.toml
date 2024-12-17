@@ -10,12 +10,15 @@ edition = "2021"
 [workspace.dependencies]
 compact_str = { version = "0.8.0" }
 fxhash = { version = "0.2.1" }
+proc-macro2 = { version = "1.0.92" }
+quote = { version = "1.0.37" }
 salad-dsl = { path = "crates/dsl" }
 salad-macro = { path = "crates/macro" }
 salad-serde = { path = "crates/serde" }
 salad-types = { path = "crates/types" }
 serde = { version = "1.0.215", features = ["std"] }
 serde_yml = { version = "0.0.12" }
+syn = { version = "2.0.90" }
 
 [package]
 name = "salad-core"
