@@ -1,3 +1,5 @@
+use proc_macro2::TokenStream as TokenStream2;
+use quote::{quote, ToTokens, TokenStreamExt as _};
 use syn::{
     parse::{Parse, ParseStream},
     Ident, Token, Type, Visibility,
@@ -31,6 +33,22 @@ impl Parse for Field {
             vis,
             ident,
             ty,
+        })
+    }
+}
+
+impl ToTokens for Field {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        let Self {
+            attrs,
+            vis,
+            ident,
+            ty,
+        } = self;
+
+        tokens.append_all(quote! {
+            #attrs
+            #vis #ident: #ty
         })
     }
 }

@@ -105,7 +105,7 @@ fn parse_enum(input: ParseStream) -> syn::Result<(Ident, InputKind)> {
     let ident = input.parse::<Ident>()?;
     let kind = {
         let content;
-        let _ = syn::parenthesized!(content in input);
+        let _ = syn::braced!(content in input);
 
         let variants = content
             .parse_terminated(Variant::parse, Token![,])?
@@ -121,7 +121,7 @@ fn parse_enum(input: ParseStream) -> syn::Result<(Ident, InputKind)> {
             _ => {
                 return Err(Error::new_spanned(
                     ident,
-                    "mixed variant types are not supported - all variants must be either unit or value variants",
+                    "all variants must be either unit or value variants",
                 ));
             }
         }

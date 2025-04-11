@@ -1,3 +1,5 @@
+use proc_macro2::TokenStream as TokenStream2;
+use quote::{quote, ToTokens, TokenStreamExt as _};
 use syn::{
     parse::{Parse, ParseStream},
     token, Ident, Type,
@@ -32,5 +34,17 @@ impl Parse for Variant {
         };
 
         Ok(Self { attrs, ident, ty })
+    }
+}
+
+impl ToTokens for Variant {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        let Self { attrs, ident, ty } = self;
+        let ty = ty.iter();
+
+        tokens.append_all(quote! {
+            #attrs
+            #ident #((#ty))*
+        });
     }
 }
