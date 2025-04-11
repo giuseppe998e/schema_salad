@@ -12,11 +12,12 @@ compact_str = { version = "0.9" }
 fxhash = { version = "0.2" }
 proc-macro2 = { version = "1.0" }
 quote = { version = "1.0" }
+salad-macro = { path = "crates/macro" }
 salad-serde = { path = "crates/serde" }
 salad-types = { path = "crates/types" }
 serde = { version = "1.0" }
 serde_yaml_ng = { version = "0.10" }
-syn = { version = "2.0" }
+syn = { version = "2.0", default-features = false }
 
 [package]
 name = "salad-core"
