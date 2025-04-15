@@ -4,7 +4,7 @@ use syn::{
     token, Error, Ident, Token, Visibility,
 };
 
-mod attributes;
+pub mod attributes;
 pub mod enumeration;
 pub mod structure;
 
@@ -112,12 +112,10 @@ fn parse_enum(input: ParseStream) -> syn::Result<(Ident, InputKind)> {
             .into_iter()
             .collect::<Vec<_>>();
 
-        let variant_count = variants.len();
         let unit_variant_count = variants.iter().filter(|v| v.ty.is_none()).count();
-
-        match (variant_count, unit_variant_count) {
-            (_, 0) => InputKind::Enum(InputEnum { variants }),
-            (v, u) if v == u => InputKind::UnitEnum(InputEnum { variants }),
+        match unit_variant_count {
+            0 => InputKind::Enum(InputEnum { variants }),
+            u if u == variants.len() => InputKind::UnitEnum(InputEnum { variants }),
             _ => {
                 return Err(Error::new_spanned(
                     ident,

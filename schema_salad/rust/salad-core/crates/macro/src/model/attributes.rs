@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{borrow::Borrow, collections::HashMap, hash::Hash};
 
 use compact_str::{CompactString, ToCompactString as _};
 use fxhash::FxBuildHasher;
@@ -8,16 +8,16 @@ use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     spanned::Spanned as _,
-    Attribute, Expr, ExprLit, Lit, LitBool, Meta, MetaNameValue, Token,
+    Attribute, Expr, ExprLit, Lit, LitBool, LitStr, Meta, MetaNameValue, Token,
 };
 
-const IDENTIFIER: &str = "identifier";
-const IDENTIFIER_SUBSCOPE: &str = "subscope";
-const DEFAULT: &str = "default";
-const MAP_KEY: &str = "map_key";
-const MAP_PREDICATE: &str = "map_predicate";
-const RENAME: &str = "as_str";
-const DOCROOT: &str = "root";
+pub const AS_STR: &str = "as_str";
+pub const DEFAULT: &str = "default";
+pub const DOCROOT: &str = "root";
+pub const IDENTIFIER: &str = "identifier";
+pub const IDENTIFIER_SUBSCOPE: &str = "subscope";
+pub const MAP_KEY: &str = "map_key";
+pub const MAP_PREDICATE: &str = "map_predicate";
 
 pub struct Attributes {
     salad: HashMap<CompactString, Lit, FxBuildHasher>,
@@ -25,7 +25,16 @@ pub struct Attributes {
 }
 
 impl Attributes {
-    // TODO
+    pub fn get_str<Q>(&self, key: &Q) -> Option<&LitStr>
+    where
+        CompactString: Borrow<Q>,
+        Q: Eq + Hash + ?Sized,
+    {
+        self.salad.get(key).and_then(|l| match l {
+            Lit::Str(s) => Some(s),
+            _ => None,
+        })
+    }
 }
 
 impl Parse for Attributes {
@@ -87,7 +96,7 @@ fn validate_meta(key: &str, value: &Lit) -> syn::Result<()> {
                 ));
             }
         }
-        IDENTIFIER_SUBSCOPE | MAP_KEY | MAP_PREDICATE | RENAME => {
+        IDENTIFIER_SUBSCOPE | MAP_KEY | MAP_PREDICATE | AS_STR => {
             if !matches!(value, Lit::Str(_)) {
                 return Err(syn::Error::new_spanned(
                     value,
