@@ -2,7 +2,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::LitStr;
 
-use crate::model::{attributes, structure::InputStruct, MacroInput};
+use crate::model::{structure::InputStruct, MacroInput};
 
 /// TODO ...
 pub fn generate(input: &MacroInput, kind: &InputStruct) -> syn::Result<TokenStream2> {

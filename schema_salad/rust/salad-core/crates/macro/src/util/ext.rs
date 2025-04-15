@@ -1,6 +1,4 @@
 use compact_str::CompactString;
-use syn::Type;
-
 
 /// Extends the string type with helper methods for string manipulation.
 pub trait StrExt {
