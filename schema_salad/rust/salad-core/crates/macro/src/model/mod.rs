@@ -5,11 +5,13 @@ use syn::{
 
 pub mod attributes;
 mod enumeration;
+mod ident;
 mod structure;
 
 pub use self::{
     attributes::SaladAttrs,
     enumeration::{InputEnum, Variant},
+    ident::TypeIdent,
     structure::{Field, InputStruct},
 };
 
@@ -18,7 +20,7 @@ pub struct MacroInput {
     pub salad: SaladAttrs,
     pub attrs: Vec<Attribute>,
     pub vis: Visibility,
-    pub ident: Ident,
+    pub ident: TypeIdent,
     pub kind: InputKind,
 }
 
@@ -71,63 +73,63 @@ impl Parse for MacroInput {
 }
 
 /// Parse a struct definition
-fn parse_struct(input: ParseStream) -> syn::Result<(Ident, InputKind)> {
+fn parse_struct(input: ParseStream) -> syn::Result<(TypeIdent, InputKind)> {
     let ident = input.parse::<Ident>()?;
-    let kind = {
-        let lookahead = input.lookahead1();
+    let lookahead = input.lookahead1();
 
-        // Struct with fields
-        if lookahead.peek(token::Brace) {
-            let content;
-            let _ = syn::braced!(content in input);
-            let fields = content
-                .parse_terminated(Field::parse, Token![,])?
-                .into_iter()
-                .collect();
+    // Struct with fields
+    if lookahead.peek(token::Brace) {
+        let content;
+        let _ = syn::braced!(content in input);
+        let fields = content
+            .parse_terminated(Field::parse, Token![,])?
+            .into_iter()
+            .collect();
 
-            InputKind::Struct(InputStruct { fields })
-        }
-        // Unit struct
-        else if lookahead.peek(Token![;]) {
-            let _ = input.parse::<Token![;]>()?;
-            InputKind::UnitStruct
-        }
-        // Unsupported tuple-like struct
-        else {
-            return Err(Error::new_spanned(
-                ident,
-                "tuple-like structs are not supported",
-            ));
-        }
-    };
-
-    Ok((ident, kind))
+        Ok((
+            TypeIdent::new(ident),
+            InputKind::Struct(InputStruct { fields }),
+        ))
+    }
+    // Unit struct
+    else if lookahead.peek(Token![;]) {
+        let _ = input.parse::<Token![;]>()?;
+        Ok((TypeIdent::new_unit(ident), InputKind::UnitStruct))
+    }
+    // Unsupported tuple-like struct
+    else {
+        Err(Error::new_spanned(
+            ident,
+            "tuple-like structs are not supported",
+        ))
+    }
 }
 
 /// Parse an enum definition
-fn parse_enum(input: ParseStream) -> syn::Result<(Ident, InputKind)> {
+fn parse_enum(input: ParseStream) -> syn::Result<(TypeIdent, InputKind)> {
     let ident = input.parse::<Ident>()?;
-    let kind = {
-        let content;
-        let _ = syn::braced!(content in input);
 
-        let variants = content
-            .parse_terminated(Variant::parse, Token![,])?
-            .into_iter()
-            .collect::<Vec<_>>();
+    let content;
+    let _ = syn::braced!(content in input);
 
-        let unit_variant_count = variants.iter().filter(|v| v.ty.is_none()).count();
-        match unit_variant_count {
-            0 => InputKind::Enum(InputEnum { variants }),
-            u if u == variants.len() => InputKind::UnitEnum(InputEnum { variants }),
-            _ => {
-                return Err(Error::new_spanned(
-                    ident,
-                    "all variants must be either unit or value variants",
-                ));
-            }
-        }
-    };
+    let variants = content
+        .parse_terminated(Variant::parse, Token![,])?
+        .into_iter()
+        .collect::<Vec<_>>();
 
-    Ok((ident, kind))
+    let unit_variant_count = variants.iter().filter(|v| v.ty.is_none()).count();
+    match unit_variant_count {
+        0 => Ok((
+            TypeIdent::new(ident),
+            InputKind::Enum(InputEnum { variants }),
+        )),
+        u if u == variants.len() => Ok((
+            TypeIdent::new_unit(ident),
+            InputKind::UnitEnum(InputEnum { variants }),
+        )),
+        _ => Err(Error::new_spanned(
+            ident,
+            "all variants must be either unit or value variants",
+        )),
+    }
 }
