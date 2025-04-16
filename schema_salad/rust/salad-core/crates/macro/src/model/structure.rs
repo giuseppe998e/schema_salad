@@ -2,19 +2,20 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::{quote, ToTokens, TokenStreamExt as _};
 use syn::{
     parse::{Parse, ParseStream},
-    Ident, Token, Type, Visibility,
+    Attribute, Ident, Token, Type, Visibility,
 };
 
-use super::Attributes;
+use super::SaladAttrs;
 
-/// ...
+/// TODO ...
 pub struct InputStruct {
     pub fields: Vec<Field>,
 }
 
-/// ...
+/// TODO ...
 pub struct Field {
-    pub attrs: Attributes,
+    pub salad: SaladAttrs,
+    pub attrs: Vec<Attribute>,
     pub vis: Visibility,
     pub ident: Ident,
     pub ty: Type,
@@ -22,13 +23,18 @@ pub struct Field {
 
 impl Parse for Field {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let attrs = input.parse::<Attributes>()?;
+        let (salad, attrs) = {
+            let attrs = input.call(Attribute::parse_outer)?;
+            SaladAttrs::parse(attrs)?
+        };
+
         let vis = input.parse::<Visibility>()?;
         let ident = input.parse::<Ident>()?;
         let _ = input.parse::<Token![:]>()?;
         let ty = input.parse::<Type>()?;
 
         Ok(Self {
+            salad,
             attrs,
             vis,
             ident,
@@ -44,10 +50,11 @@ impl ToTokens for Field {
             vis,
             ident,
             ty,
+            ..
         } = self;
 
         tokens.append_all(quote! {
-            #attrs
+            #( #attrs )*
             #vis #ident: #ty
         })
     }

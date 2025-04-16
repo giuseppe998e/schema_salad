@@ -2,13 +2,9 @@ use std::{borrow::Borrow, collections::HashMap, hash::Hash};
 
 use compact_str::{CompactString, ToCompactString as _};
 use fxhash::FxBuildHasher;
-use proc_macro2::TokenStream as TokenStream2;
-use quote::{ToTokens, TokenStreamExt as _};
 use syn::{
-    parse::{Parse, ParseStream},
-    punctuated::Punctuated,
-    spanned::Spanned as _,
-    Attribute, Expr, ExprLit, Lit, LitBool, LitStr, Meta, MetaNameValue, Token,
+    punctuated::Punctuated, spanned::Spanned as _, Attribute, Expr, ExprLit, Lit, LitBool, LitStr,
+    Meta, MetaNameValue, Token,
 };
 
 pub const AS_STR: &str = "as_str";
@@ -19,28 +15,25 @@ pub const IDENTIFIER_SUBSCOPE: &str = "subscope";
 pub const MAP_KEY: &str = "map_key";
 pub const MAP_PREDICATE: &str = "map_predicate";
 
-pub struct Attributes {
-    salad: HashMap<CompactString, Lit, FxBuildHasher>,
-    common: Vec<Attribute>,
+pub struct SaladAttrs {
+    map: HashMap<CompactString, Lit, FxBuildHasher>,
 }
 
-impl Attributes {
+impl SaladAttrs {
     pub fn get_str<Q>(&self, key: &Q) -> Option<&LitStr>
     where
         CompactString: Borrow<Q>,
         Q: Eq + Hash + ?Sized,
     {
-        self.salad.get(key).and_then(|l| match l {
+        self.map.get(key).and_then(|l| match l {
             Lit::Str(s) => Some(s),
             _ => None,
         })
     }
 }
 
-impl Parse for Attributes {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let attrs = input.call(Attribute::parse_outer)?;
-
+impl SaladAttrs {
+    pub fn parse(attrs: Vec<Attribute>) -> syn::Result<(Self, Vec<Attribute>)> {
         let mut salad = HashMap::with_hasher(FxBuildHasher::default());
         let mut common = Vec::with_capacity(attrs.len());
 
@@ -63,7 +56,7 @@ impl Parse for Attributes {
             }
         }
 
-        Ok(Self { salad, common })
+        Ok((Self { map: salad }, common))
     }
 }
 
@@ -108,10 +101,4 @@ fn validate_meta(key: &str, value: &Lit) -> syn::Result<()> {
     }
 
     Ok(())
-}
-
-impl ToTokens for Attributes {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
-        tokens.append_all(self.common.iter());
-    }
 }

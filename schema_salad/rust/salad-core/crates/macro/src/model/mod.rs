@@ -1,6 +1,6 @@
 use syn::{
     parse::{Parse, ParseStream},
-    token, Error, Ident, Token, Visibility,
+    token, Attribute, Error, Ident, Token, Visibility,
 };
 
 pub mod attributes;
@@ -8,14 +8,15 @@ mod enumeration;
 mod structure;
 
 pub use self::{
-    attributes::Attributes,
+    attributes::SaladAttrs,
     enumeration::{InputEnum, Variant},
     structure::{Field, InputStruct},
 };
 
 /// Type sent to a `proc_macro` macro.
 pub struct MacroInput {
-    pub attrs: Attributes,
+    pub salad: SaladAttrs,
+    pub attrs: Vec<Attribute>,
     pub vis: Visibility,
     pub ident: Ident,
     pub kind: InputKind,
@@ -40,7 +41,11 @@ pub enum InputKind {
 
 impl Parse for MacroInput {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let attrs = input.parse::<Attributes>()?;
+        let (salad, attrs) = {
+            let attrs = input.call(Attribute::parse_outer)?;
+            SaladAttrs::parse(attrs)?
+        };
+
         let vis = input.parse::<Visibility>()?;
         let lookahead = input.lookahead1();
 
@@ -56,6 +61,7 @@ impl Parse for MacroInput {
         };
 
         Ok(MacroInput {
+            salad,
             attrs,
             vis,
             ident,
