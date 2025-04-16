@@ -3,7 +3,7 @@ use quote::quote;
 
 mod de;
 
-use crate::model::{attributes, structure::InputStruct, MacroInput};
+use crate::model::{attributes, InputStruct, MacroInput};
 
 pub fn generate(input: &MacroInput, kind: &InputStruct) -> syn::Result<TokenStream2> {
     let MacroInput {

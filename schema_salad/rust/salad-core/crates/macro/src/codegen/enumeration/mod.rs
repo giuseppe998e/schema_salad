@@ -3,7 +3,7 @@ use quote::quote;
 
 mod de;
 
-use crate::model::{attributes, enumeration::InputEnum, MacroInput};
+use crate::model::{attributes, InputEnum, MacroInput};
 
 pub fn generate(input: &MacroInput, kind: &InputEnum) -> syn::Result<TokenStream2> {
     let MacroInput {

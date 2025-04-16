@@ -3,7 +3,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::{Ident, LitStr};
 
-use crate::model::{enumeration::InputEnum, MacroInput};
+use crate::model::{InputEnum, MacroInput};
 
 /// TODO ...
 pub fn generate(input: &MacroInput, kind: &InputEnum) -> syn::Result<TokenStream2> {

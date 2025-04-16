@@ -1,17 +1,15 @@
-use enumeration::Variant;
 use syn::{
     parse::{Parse, ParseStream},
     token, Error, Ident, Token, Visibility,
 };
 
 pub mod attributes;
-pub mod enumeration;
-pub mod structure;
+mod enumeration;
+mod structure;
 
-pub use self::attributes::Attributes;
-
-use self::{
-    enumeration::InputEnum,
+pub use self::{
+    attributes::Attributes,
+    enumeration::{InputEnum, Variant},
     structure::{Field, InputStruct},
 };
 
