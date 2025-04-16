@@ -1,40 +1,40 @@
 use syn::{
     parse::{Parse, ParseStream},
-    token, Attribute, Error, Ident, Token, Visibility,
+    token, Attribute, Error, Ident, Token, Type, Visibility,
 };
 
 pub mod attributes;
-mod enumeration;
 mod ident;
-mod structure;
 
-pub use self::{
-    attributes::SaladAttrs,
-    enumeration::{InputEnum, Variant},
-    ident::TypeIdent,
-    structure::{Field, InputStruct},
-};
+pub use self::{attributes::SaladAttrs, ident::TypeIdent};
 
-/// Type sent to a `proc_macro` macro.
+/// Represents the input to the macro, including metadata, and kind.
 pub struct MacroInput {
+    pub meta: InputMetadata,
+    pub kind: InputKind,
+}
+
+/// Contains metadata for the input, such as attributes,
+/// visibility, and identifier.
+pub struct InputMetadata {
     pub salad: SaladAttrs,
     pub attrs: Vec<Attribute>,
     pub vis: Visibility,
     pub ident: TypeIdent,
-    pub kind: InputKind,
 }
 
-/// Represents different kinds of input types for macro processing.
+/// Enum representing the kind of input, which can be an enum, struct,
+/// unit enum, or unit struct.
 pub enum InputKind {
     /// Represent a parsable enum type.
-    Enum(InputEnum),
+    Enum(Vec<Variant>),
 
     /// Represent a parsable struct type.
-    Struct(InputStruct),
+    Struct(Vec<Field>),
 
     /// Represent a parsable enum type
     /// with unit variants.
-    UnitEnum(InputEnum),
+    UnitEnum(Vec<Variant>),
 
     /// Represent a parsable struct type
     /// without fields.
@@ -43,36 +43,39 @@ pub enum InputKind {
 
 impl Parse for MacroInput {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let (salad, attrs) = {
-            let attrs = input.call(Attribute::parse_outer)?;
-            SaladAttrs::parse(attrs)?
-        };
-
+        let (salad, attrs) = input.call(SaladAttrs::parse_outer)?;
         let vis = input.parse::<Visibility>()?;
-        let lookahead = input.lookahead1();
 
         // Parse either struct or enum
-        let (ident, kind) = if lookahead.peek(Token![struct]) {
-            let _ = input.parse::<Token![struct]>()?;
-            parse_struct(input)?
-        } else if lookahead.peek(Token![enum]) {
-            let _ = input.parse::<Token![enum]>()?;
-            parse_enum(input)?
-        } else {
-            return Err(input.error("expected `struct` or `enum`"));
+        let (ident, kind) = {
+            let lookahead = input.lookahead1();
+
+            if lookahead.peek(Token![struct]) {
+                let _ = input.parse::<Token![struct]>()?;
+                parse_struct(input)?
+            } else if lookahead.peek(Token![enum]) {
+                let _ = input.parse::<Token![enum]>()?;
+                parse_enum(input)?
+            } else {
+                return Err(input.error("expected `struct` or `enum`"));
+            }
         };
 
-        Ok(MacroInput {
+        let meta = InputMetadata {
             salad,
             attrs,
             vis,
             ident,
-            kind,
-        })
+        };
+
+        Ok(MacroInput { meta, kind })
     }
 }
 
-/// Parse a struct definition
+/// Parses a struct from the input stream.
+///
+/// This function handles both regular structs with fields and unit structs.
+/// It returns a tuple containing the identifier of the struct and its kind.
 fn parse_struct(input: ParseStream) -> syn::Result<(TypeIdent, InputKind)> {
     let ident = input.parse::<Ident>()?;
     let lookahead = input.lookahead1();
@@ -86,10 +89,7 @@ fn parse_struct(input: ParseStream) -> syn::Result<(TypeIdent, InputKind)> {
             .into_iter()
             .collect();
 
-        Ok((
-            TypeIdent::new(ident),
-            InputKind::Struct(InputStruct { fields }),
-        ))
+        Ok((TypeIdent::new(ident), InputKind::Struct(fields)))
     }
     // Unit struct
     else if lookahead.peek(Token![;]) {
@@ -105,7 +105,10 @@ fn parse_struct(input: ParseStream) -> syn::Result<(TypeIdent, InputKind)> {
     }
 }
 
-/// Parse an enum definition
+/// Parses an enum from the input stream.
+///
+/// This function handles both regular enums with variants and unit enums.
+/// It returns a tuple containing the identifier of the enum and its kind.
 fn parse_enum(input: ParseStream) -> syn::Result<(TypeIdent, InputKind)> {
     let ident = input.parse::<Ident>()?;
 
@@ -119,17 +122,73 @@ fn parse_enum(input: ParseStream) -> syn::Result<(TypeIdent, InputKind)> {
 
     let unit_variant_count = variants.iter().filter(|v| v.ty.is_none()).count();
     match unit_variant_count {
-        0 => Ok((
-            TypeIdent::new(ident),
-            InputKind::Enum(InputEnum { variants }),
-        )),
-        u if u == variants.len() => Ok((
-            TypeIdent::new_unit(ident),
-            InputKind::UnitEnum(InputEnum { variants }),
-        )),
+        0 => Ok((TypeIdent::new(ident), InputKind::Enum(variants))),
+        u if u == variants.len() => Ok((TypeIdent::new_unit(ident), InputKind::UnitEnum(variants))),
         _ => Err(Error::new_spanned(
             ident,
             "all variants must be either unit or value variants",
         )),
+    }
+}
+
+/// Represents a field in a struct, including salad attributes,
+/// rust attributes, visibility, identifier, and type.
+pub struct Field {
+    pub salad: SaladAttrs,
+    pub attrs: Vec<Attribute>,
+    pub vis: Visibility,
+    pub ident: Ident,
+    pub ty: Type,
+}
+
+impl Parse for Field {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let (salad, attrs) = input.call(SaladAttrs::parse_outer)?;
+        let vis = input.parse::<Visibility>()?;
+        let ident = input.parse::<Ident>()?;
+        let _ = input.parse::<Token![:]>()?;
+        let ty = input.parse::<Type>()?;
+
+        Ok(Self {
+            salad,
+            attrs,
+            vis,
+            ident,
+            ty,
+        })
+    }
+}
+
+/// Represents a variant in an enum, including salad attributes,
+/// rust attributes, identifier, and an optional type.
+pub struct Variant {
+    pub salad: SaladAttrs,
+    pub attrs: Vec<Attribute>,
+    pub ident: Ident,
+    pub ty: Option<Type>,
+}
+
+impl Parse for Variant {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let (salad, attrs) = input.call(SaladAttrs::parse_outer)?;
+        let ident = input.parse::<Ident>()?;
+        let ty = {
+            let lookahead = input.lookahead1();
+
+            if lookahead.peek(token::Paren) {
+                let content;
+                let _ = syn::parenthesized!(content in input);
+                content.parse::<Type>().map(Some)?
+            } else {
+                None
+            }
+        };
+
+        Ok(Self {
+            salad,
+            attrs,
+            ident,
+            ty,
+        })
     }
 }

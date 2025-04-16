@@ -3,8 +3,8 @@ use std::{borrow::Borrow, collections::HashMap, hash::Hash};
 use compact_str::{CompactString, ToCompactString as _};
 use fxhash::FxBuildHasher;
 use syn::{
-    punctuated::Punctuated, spanned::Spanned as _, Attribute, Expr, ExprLit, Lit, LitBool, LitStr,
-    Meta, MetaNameValue, Token,
+    parse::ParseStream, punctuated::Punctuated, spanned::Spanned as _, Attribute, Expr, ExprLit,
+    Lit, LitBool, LitStr, Meta, MetaNameValue, Token,
 };
 
 pub const AS_STR: &str = "as_str";
@@ -25,19 +25,21 @@ impl SaladAttrs {
         CompactString: Borrow<Q>,
         Q: Eq + Hash + ?Sized,
     {
-        self.map.get(key).and_then(|l| match l {
-            Lit::Str(s) => Some(s),
+        match self.map.get(key) {
+            Some(Lit::Str(s)) => Some(s),
             _ => None,
-        })
+        }
     }
 }
 
 impl SaladAttrs {
-    pub fn parse(attrs: Vec<Attribute>) -> syn::Result<(Self, Vec<Attribute>)> {
+    pub fn parse_outer(input: ParseStream) -> syn::Result<(Self, Vec<Attribute>)> {
         let mut salad = HashMap::with_hasher(FxBuildHasher::default());
-        let mut common = Vec::with_capacity(attrs.len());
+        let mut rust = Vec::new();
 
-        for attr in attrs {
+        while input.peek(Token![#]) {
+            let attr = input.call(single_parse_outer)?;
+
             if attr.path().is_ident("salad") {
                 let Meta::List(list) = attr.meta else {
                     return Err(syn::Error::new_spanned(
@@ -52,12 +54,23 @@ impl SaladAttrs {
                     salad.insert(key, value);
                 }
             } else {
-                common.push(attr);
+                rust.push(attr);
             }
         }
 
-        Ok((Self { map: salad }, common))
+        Ok((Self { map: salad }, rust))
     }
+}
+
+fn single_parse_outer(input: ParseStream) -> syn::Result<Attribute> {
+    let content;
+
+    Ok(Attribute {
+        pound_token: input.parse()?,
+        style: syn::AttrStyle::Outer,
+        bracket_token: syn::bracketed!(content in input),
+        meta: content.parse()?,
+    })
 }
 
 fn parse_meta(meta: Meta) -> syn::Result<(CompactString, Lit)> {
@@ -97,7 +110,7 @@ fn validate_meta(key: &str, value: &Lit) -> syn::Result<()> {
                 ));
             }
         }
-        _ => {} // No validation needed for other keys
+        _ => () // No validation needed for other keys
     }
 
     Ok(())
