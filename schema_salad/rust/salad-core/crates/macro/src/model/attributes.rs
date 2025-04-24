@@ -98,7 +98,7 @@ fn validate_meta(key: &str, value: &Lit) -> syn::Result<()> {
             if !matches!(value, Lit::Bool(_)) {
                 return Err(syn::Error::new_spanned(
                     value,
-                    format!("salad attribute `{key}` must be a boolean"),
+                    "salad attribute must be a boolean",
                 ));
             }
         }
@@ -106,11 +106,11 @@ fn validate_meta(key: &str, value: &Lit) -> syn::Result<()> {
             if !matches!(value, Lit::Str(_)) {
                 return Err(syn::Error::new_spanned(
                     value,
-                    format!("salad attribute `{key}` must be a string"),
+                    "salad attribute must be a string",
                 ));
             }
         }
-        _ => () // No validation needed for other keys
+        _ => (), // No validation needed for other keys
     }
 
     Ok(())
