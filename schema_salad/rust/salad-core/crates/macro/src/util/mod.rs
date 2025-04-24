@@ -1,3 +1,3 @@
-mod ext;
+mod string;
 
-pub use self::ext::StrExt;
+pub use self::string::ToSnakeCase;

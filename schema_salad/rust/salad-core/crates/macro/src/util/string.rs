@@ -1,7 +1,7 @@
 use compact_str::CompactString;
 
 /// Extends the string type with helper methods for string manipulation.
-pub trait StrExt {
+pub trait ToSnakeCase {
     /// Converts a string to snake_case.
     ///
     /// This converts strings in various cases (like camelCase or PascalCase)
@@ -11,7 +11,7 @@ pub trait StrExt {
     /// # Examples
     ///
     /// ```
-    /// use your_crate::StrExt;
+    /// use your_crate::ToSnakeCase;
     ///
     /// assert_eq!("HelloWorld".to_snake_case(), "hello_world");
     /// assert_eq!("camelCase".to_snake_case(), "camel_case");
@@ -19,7 +19,7 @@ pub trait StrExt {
     fn to_snake_case(&self) -> CompactString;
 }
 
-impl StrExt for &str {
+impl ToSnakeCase for &str {
     fn to_snake_case(&self) -> CompactString {
         let mut buf = CompactString::const_new(""); // Capacity = 24
         let mut chars = self.chars();
