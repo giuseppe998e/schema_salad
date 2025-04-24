@@ -10,6 +10,7 @@ pub use self::{attributes::SaladAttrs, ident::TypeIdent};
 
 /// Represents the input to the macro, including metadata, and kind.
 pub struct MacroInput {
+    pub salad: SaladAttrs,
     pub meta: InputMetadata,
     pub kind: InputKind,
 }
@@ -17,7 +18,6 @@ pub struct MacroInput {
 /// Contains metadata for the input, such as attributes,
 /// visibility, and identifier.
 pub struct InputMetadata {
-    pub salad: SaladAttrs,
     pub attrs: Vec<Attribute>,
     pub vis: Visibility,
     pub ident: TypeIdent,
@@ -61,14 +61,8 @@ impl Parse for MacroInput {
             }
         };
 
-        let meta = InputMetadata {
-            salad,
-            attrs,
-            vis,
-            ident,
-        };
-
-        Ok(MacroInput { meta, kind })
+        let meta = InputMetadata { attrs, vis, ident };
+        Ok(MacroInput { salad, meta, kind })
     }
 }
 

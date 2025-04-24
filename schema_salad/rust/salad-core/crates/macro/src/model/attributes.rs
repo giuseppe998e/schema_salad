@@ -34,7 +34,7 @@ impl SaladAttrs {
 
 impl SaladAttrs {
     pub fn parse_outer(input: ParseStream) -> syn::Result<(Self, Vec<Attribute>)> {
-        let mut salad = HashMap::with_hasher(FxBuildHasher::default());
+        let mut salad = HashMap::with_capacity_and_hasher(2, FxBuildHasher::default());
         let mut rust = Vec::new();
 
         while input.peek(Token![#]) {
