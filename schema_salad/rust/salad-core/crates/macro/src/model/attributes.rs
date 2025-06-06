@@ -20,7 +20,7 @@ pub struct SaladAttrs {
 }
 
 impl SaladAttrs {
-    pub fn get_str<Q>(&self, key: &Q) -> Option<&LitStr>
+    pub fn get_str_value<Q>(&self, key: &Q) -> Option<&LitStr>
     where
         CompactString: Borrow<Q>,
         Q: Eq + Hash + ?Sized,
