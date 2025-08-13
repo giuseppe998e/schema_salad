@@ -2,7 +2,6 @@
 
 __all__ = ["RustCodeGen"]
 
-import dataclasses
 import functools
 import itertools
 import json
@@ -15,43 +14,23 @@ from importlib.resources import files as resource_files
 from io import StringIO
 from pathlib import Path
 from time import sleep
-from typing import (
-    Any,
-    ClassVar,
-    Optional,
-    TextIO,
-    Union,
-)
+from typing import IO, Any, ClassVar, Optional, Pattern, Union, cast
 
 from . import _logger
+from .avro.schema import ArraySchema, EnumSchema
+from .avro.schema import Field as SaladField
+from .avro.schema import JsonDataType, NamedSchema, NamedUnionSchema
+from .avro.schema import Names as SaladNames
 from .avro.schema import (
-    ArraySchema,
-    EnumSchema,
-    JsonDataType,
-    NamedSchema,
-    NamedUnionSchema,
     PrimitiveSchema,
     RecordSchema,
     Schema,
     UnionSchema,
-    Field as SaladField,
-    Names as SaladNames,
     make_avsc_object,
 )
 from .codegen_base import CodeGenBase
 from .schema import make_valid_avro
 from .validate import avro_shortname
-
-
-def dataclass(*args, **kwargs):
-    """
-    A wrapper around `@dataclass` attribute that automatically enables
-    `slots` if Python version >= 3.10.
-    """
-    if sys.version_info >= (3, 10):
-        return dataclasses.dataclass(*args, slots=True, **kwargs)
-    return dataclasses.dataclass(*args, **kwargs)
-
 
 #
 # Util Functions
@@ -85,11 +64,7 @@ __MD_NON_HYPERLINK_REX = re.compile(
 # TODO Check strings for Unicode standard for `XID_Start` and `XID_Continue`
 # @functools.cache
 def rust_sanitize_field_ident(value: str) -> str:
-    """
-    Checks whether the field name is a Rust reserved world, or escapes it.
-    """
-    # value = functools.reduce(lambda s, r: re.sub(*r, s), __FIELD_NAME_REX_DICT, value)
-    # value = value.lower()
+    """Check whether the field name is a Rust reserved world, or escape it."""
     if value in __RUST_RESERVED_WORDS:
         return f"r#{value}"
     return value
@@ -98,20 +73,17 @@ def rust_sanitize_field_ident(value: str) -> str:
 # TODO Check strings for Unicode standard for `XID_Start` and `XID_Continue`
 @functools.cache
 def rust_sanitize_type_ident(value: str) -> str:
-    """
-    Converts an input string into a valid Rust type name (PascalCase).
+    """Convert an input string into a valid Rust type name (PascalCase).
+
     Results are cached for performance optimization.
     """
-    return functools.reduce(lambda s, r: re.sub(*r, s), __TYPE_NAME_REX_DICT, value)
+    return functools.reduce(lambda s, r: re.sub(r[0], r[1], s), __TYPE_NAME_REX_DICT, value)
 
 
-def rust_sanitize_doc_iter(value: Union[list[str], str]) -> Iterator[str]:
-    """
-    Sanitizes Markdown doc-strings by splitting lines and wrapping non-hyperlinked
-    URLs in angle brackets.
-    """
+def rust_sanitize_doc_iter(value: Union[Sequence[str], str]) -> Iterator[str]:
+    """Sanitize Markdown doc-strings by splitting lines and wrapping non-hyperlinked URLs."""
     return map(
-        lambda v: re.sub(__MD_NON_HYPERLINK_REX, lambda m: f"<{m.group()}>", v),
+        lambda v: re.sub(__MD_NON_HYPERLINK_REX, lambda m: f"<{str(m.group())}>", v),
         itertools.chain.from_iterable(map(  # flat_map
             lambda v: v.rstrip().split("\n"),
             [value] if isinstance(value, str) else value,
@@ -121,8 +93,8 @@ def rust_sanitize_doc_iter(value: Union[list[str], str]) -> Iterator[str]:
 
 @functools.cache
 def to_rust_literal(value: Any) -> str:
-    """
-    Convert Python values to their equivalent Rust literal representation.
+    """Convert Python values to their equivalent Rust literal representation.
+
     Results are cached for performance optimization.
     """
     if isinstance(value, bool):
@@ -142,10 +114,7 @@ def to_rust_literal(value: Any) -> str:
 
 
 def make_avro(items: MutableSequence[JsonDataType]) -> MutableSequence[NamedSchema]:
-    """
-    Processes a list of dictionaries to generate a list of Avro schemas.
-    """
-
+    """Process a list of dictionaries to generate a list of Avro schemas."""  # fmt: skip
     # Same as `from .utils import convert_to_dict`, which, however, is not public
     def convert_to_dict(j4: Any) -> Any:
         """Convert generic Mapping objects to dicts recursively."""
@@ -179,13 +148,13 @@ def make_avro(items: MutableSequence[JsonDataType]) -> MutableSequence[NamedSche
 RustIdent = str  # alias
 
 
-@dataclass  # ASSERT: Immutable class
 class RustLifetime:
-    """
-    Represents a Rust lifetime parameter (e.g., `'a`).
-    """
+    """Represents a Rust lifetime parameter (e.g., `'a`)."""
 
-    ident: RustIdent
+    __slots__ = ("ident",)
+
+    def __init__(self, ident: RustIdent):
+        self.ident = ident
 
     def __hash__(self) -> int:
         return hash(self.ident)
@@ -195,28 +164,27 @@ class RustLifetime:
 
 
 class RustType(ABC):
-    """
-    Abstract class for Rust types.
-    """
+    """Abstract class for Rust types."""
 
     pass
 
 
 class RustMeta(ABC):
-    """
-    Abstract class for Rust attribute metas.
-    """
+    """Abstract class for Rust attribute metas."""
 
     pass
 
 
-@dataclass(unsafe_hash=True)  # ASSERT: Immutable class
 class RustAttribute:
-    """
-    Represents a Rust attribute (e.g., `#[derive(Debug)]`).
-    """
+    """Represents a Rust attribute (e.g., `#[derive(Debug)]`)."""
 
-    meta: RustMeta
+    __slots__ = ("meta",)
+
+    def __init__(self, meta: RustMeta):
+        self.meta = meta
+
+    def __hash__(self) -> int:
+        return hash(self.meta)
 
     def __str__(self) -> str:
         return f"#[{str(self.meta)}]"
@@ -226,20 +194,25 @@ RustAttributes = Sequence[RustAttribute]  # alias
 RustAttributesMut = MutableSequence[RustAttribute]  # alias
 
 
-RustGenerics = Sequence[Union[RustLifetime, RustType]]  # alias
-RustGenericsMut = MutableSequence[Union[RustLifetime, RustType]]  # alias
+RustGenerics = Sequence[Union[RustLifetime, "RustPath"]]  # alias
+RustGenericsMut = MutableSequence[Union[RustLifetime, "RustPath"]]  # alias
 
 
-@dataclass(unsafe_hash=True)  # ASSERT: Immutable class
 class RustPathSegment:
-    """
-    Represents a segment in a Rust path with optional generics.
-    """
+    """Represents a segment in a Rust path with optional generics."""
 
-    ident: RustIdent
-    generics: RustGenerics = dataclasses.field(default_factory=tuple)
+    __slots__ = ("ident", "generics")
 
-    REX: ClassVar[re.Pattern] = re.compile(r"^([a-zA-Z_]\w*)(?:<([ \w\t,'<>]+)>)?$")
+    REX: ClassVar[Pattern[str]] = re.compile(
+        r"^([a-zA-Z_]\w*)(?:<([ \w\t,'<>]+)>)?$"
+    )  # Using `re.Pattern[str]` raise CI build errors
+
+    def __init__(self, ident: RustIdent, generics: Optional[RustGenerics] = None):
+        self.ident = ident
+        self.generics = () if generics is None else generics
+
+    def __hash__(self) -> int:
+        return hash((self.ident, self.generics))
 
     def __str__(self) -> str:
         if not self.generics:
@@ -248,19 +221,19 @@ class RustPathSegment:
         generics_str = ", ".join(map(str, generics))
         return f"{self.ident}<{generics_str}>"
 
-    # noinspection PyArgumentList
     @classmethod
     @functools.cache
     def from_str(cls, value: str) -> "RustPathSegment":
-        """
-        Parses a string into RustPathSegment class.
+        """Parse a string into RustPathSegment class.
+
         Results are cached for performance optimization.
         """
 
         def parse_generics_string(value_generics: str) -> RustGenerics:
-            generics_sequence: Union[MutableSequence[str], RustGenerics] = []
-            current, deep = [], 0
-            for idx, char in enumerate(value_generics):
+            generics_sequence: MutableSequence[str] = []
+            current: MutableSequence[str] = []
+            deep = 0
+            for char in value_generics:
                 deep += (char == "<") - (char == ">")
                 if deep == 0 and char == ",":
                     generics_sequence.append("".join(current).strip())
@@ -273,7 +246,7 @@ class RustPathSegment:
                 raise ValueError(f"Poorly formatted Rust path generics: '{value}'.")
             generics_sequence.append("".join(current).strip())
             return tuple([
-                RustLifetime(g[1:]) if g[0] == "'" else RustPath.from_str(g)
+                RustLifetime(ident=g[1:]) if g.startswith("'") else RustPath.from_str(g)
                 for g in generics_sequence
             ])  # fmt: skip
 
@@ -281,7 +254,9 @@ class RustPathSegment:
         # `from_str(...)` method
         if match := re.match(RustPathSegment.REX, value):
             ident, generics = match.groups()
-            return cls(ident, parse_generics_string(generics) if generics else tuple())
+            return cls(
+                ident=ident, generics=parse_generics_string(generics) if generics else tuple()
+            )
         raise ValueError(f"Poorly formatted Rust path segment: '{value}'.")
 
 
@@ -289,20 +264,24 @@ RustPathSegments = Sequence[RustPathSegment]  # alias
 RustPathSegmentsMut = MutableSequence[RustPathSegment]  # alias
 
 
-@dataclass(unsafe_hash=True)  # ASSERT: Immutable class
-class RustPath(RustType, RustMeta):
-    """
-    Represents a complete Rust path (e.g., `::std::vec::Vec<T>`).
-    """
+class RustPath(RustMeta):
+    """Represents a complete Rust path (e.g., `::std::vec::Vec<T>`)."""
+
+    __slots__ = ("segments", "leading_colon")
 
     # ASSERT: Never initialized with an empty sequence
-    segments: RustPathSegments
-    leading_colon: bool = False
+    def __init__(self, segments: RustPathSegments, leading_colon: bool = False):
+        self.segments = segments
+        self.leading_colon = leading_colon
+
+    def __hash__(self) -> int:
+        return hash((self.segments, self.leading_colon))
 
     def __truediv__(self, other: Union["RustPath", RustPathSegment]) -> "RustPath":
+        if self.segments[-1].generics:
+            raise ValueError("Cannot chain to a RustPath with generics.")
+
         if isinstance(other, RustPath):
-            if self.segments[-1].generics:
-                raise ValueError("Cannot chain to a RustPath with generics.")
             if other.leading_colon:
                 raise ValueError("Cannot chain a RustPath with leading colon.")
             return RustPath(
@@ -310,25 +289,21 @@ class RustPath(RustType, RustMeta):
                 leading_colon=self.leading_colon,
             )
         if isinstance(other, RustPathSegment):
-            if self.segments[-1].generics:
-                raise ValueError("Cannot chain to a RustPath with generics.")
             return RustPath(
                 segments=tuple([*self.segments, other]),
                 leading_colon=self.leading_colon,
             )
-        raise TypeError(f"RustPath chaining with type `{type(other).__name__}` not supported.")
 
     def __str__(self) -> str:
         leading_colon = "::" if self.leading_colon else ""
         path_str = "::".join(map(str, self.segments))
         return leading_colon + path_str
 
-    # noinspection PyArgumentList
     @classmethod
     @functools.cache
     def from_str(cls, value: str) -> "RustPath":
-        """
-        Parses a string into RustPath class.
+        """Parse a string into RustPath class.
+
         Results are cached for performance optimization.
         """
         norm_value, leading_colon = (value[2:], True) if value.startswith("::") else (value, False)
@@ -339,40 +314,34 @@ class RustPath(RustType, RustMeta):
             segments.append(segment)
         if segment_with_generics > 1:
             raise ValueError(f"Poorly formatted Rust path: '{value}'")
-        return cls(tuple(segments), leading_colon)
-
-    # def parent(self) -> "RustPath":
-    #     """
-    #     Returns a new RustPath containing all but the last segment.
-    #     """
-    #     return RustPath(
-    #         segments=self.segments[:-1],
-    #         leading_colon=self.leading_colon,
-    #     )
+        return cls(segments=tuple(segments), leading_colon=leading_colon)
 
 
-@dataclass(unsafe_hash=True)  # ASSERT: Immutable class
 class RustTypeTuple(RustType):
-    """
-    Represents a Rust tuple type (e.g., `(T, U)`).
-    """
+    """Represents a Rust tuple type (e.g., `(T, U)`)."""
+
+    __slots__ = ("types",)
 
     # ASSERT: Never initialized with an empty sequence
-    types: Sequence[RustType]
+    def __init__(self, types: Sequence[RustPath]):
+        self.types = types
+
+    def __hash__(self) -> int:
+        return hash(self.types)
 
     def __str__(self) -> str:
         types_str = ", ".join(str(ty) for ty in self.types)
         return f"({types_str})"
 
 
-@dataclass  # ASSERT: Immutable class
 class RustMetaList(RustMeta):
-    """
-    Represents attribute meta list information (e.g., `derive(Debug, Clone)`)
-    """
+    """Represents attribute meta list information (e.g., `derive(Debug, Clone)`).."""
 
-    path: RustPath
-    metas: Sequence[RustMeta] = tuple()
+    __slots__ = ("path", "metas")
+
+    def __init__(self, path: RustPath, metas: Optional[Sequence[RustMeta]] = None):
+        self.path = path
+        self.metas = () if metas is None else metas
 
     def __hash__(self) -> int:
         return hash(self.path)
@@ -382,14 +351,14 @@ class RustMetaList(RustMeta):
         return f"{str(self.path)}(" + meta_str + ")"
 
 
-@dataclass  # ASSERT: Immutable class
 class RustMetaNameValue(RustMeta):
-    """
-    Represents attribute meta name-value information (e.g., `key = value`)
-    """
+    """Represents attribute meta name-value information (e.g., `key = value`)."""
 
-    path: RustPath
-    value: Any = True
+    __slots__ = ("path", "value")
+
+    def __init__(self, path: RustPath, value: Any = True):
+        self.path = path
+        self.value = value
 
     def __hash__(self) -> int:
         return hash(self.path)
@@ -403,21 +372,23 @@ class RustMetaNameValue(RustMeta):
 #
 
 
-@dataclass
 class RustNamedType(ABC):  # ABC class
-    """
-    Abstract class for Rust struct and enum types.
-    """
+    """Abstract class for Rust struct and enum types."""
 
-    ident: RustIdent
-    attrs: RustAttributes = dataclasses.field(default_factory=list)
-    visibility: str = "pub"
+    __slots__ = ("ident", "attrs", "visibility")
+
+    def __init__(
+        self, ident: RustIdent, attrs: Optional[RustAttributes] = None, visibility: str = "pub"
+    ):
+        self.ident = ident
+        self.attrs = () if attrs is None else attrs
+        self.visibility = visibility
 
     def __hash__(self) -> int:
         return hash(self.ident)
 
     @abstractmethod
-    def write_to(self, writer: TextIO, depth: int = 0) -> None:
+    def write_to(self, writer: IO[str], depth: int = 0) -> None:
         pass
 
     def __str__(self) -> str:
@@ -426,20 +397,20 @@ class RustNamedType(ABC):  # ABC class
         return output.getvalue()
 
 
-@dataclass  # ASSERT: Immutable class
 class RustField:
-    """
-    Represents a field in a Rust struct.
-    """
+    """Represents a field in a Rust struct."""
 
-    ident: RustIdent
-    type: RustType
-    attrs: RustAttributes = dataclasses.field(default_factory=list)
+    __slots__ = ("ident", "type", "attrs")
+
+    def __init__(self, ident: RustIdent, type: RustPath, attrs: Optional[RustAttributes] = None):
+        self.ident = ident
+        self.type = type
+        self.attrs = () if attrs is None else attrs
 
     def __hash__(self) -> int:
         return hash(self.ident)
 
-    def write_to(self, writer: TextIO, depth: int = 0) -> None:
+    def write_to(self, writer: IO[str], depth: int = 0) -> None:
         indent = "    " * depth
 
         if self.attrs:
@@ -451,19 +422,27 @@ RustFields = Union[Sequence[RustField], RustTypeTuple]  # alias
 RustFieldsMut = Union[MutableSequence[RustField], RustTypeTuple]  # alias
 
 
-@dataclass
 class RustStruct(RustNamedType):
-    """
-    Represents a Rust struct definition.
-    """
+    """Represents a Rust struct definition."""
 
-    fields: Optional[RustFields] = None
+    __slots__ = ("fields",)
 
-    def write_to(self, writer: TextIO, depth: int = 0) -> None:
+    def __init__(
+        self,
+        ident: RustIdent,
+        fields: Optional[RustFields] = None,
+        attrs: Optional[RustAttributes] = None,
+        visibility: str = "pub",
+    ):
+        _attrs = () if attrs is None else attrs
+        super().__init__(ident, _attrs, visibility)
+        self.fields = fields
+
+    def write_to(self, writer: IO[str], depth: int = 0) -> None:
         indent = "    " * depth
 
         if self.attrs:
-            writer.write("\n".join(f"{indent}{str(attr)}" for attr in self.attrs) + "\n")
+            writer.write("\n".join([f"{indent}{str(attr)}" for attr in self.attrs]) + "\n")
 
         writer.write(f"{indent}{self.visibility} struct {self.ident}")
         if self.fields is None:
@@ -478,41 +457,47 @@ class RustStruct(RustNamedType):
             writer.write(f"{indent}}}\n")
 
 
-@dataclass  # ASSERT: Immutable class
 class RustVariant:
-    """
-    Represents a variant in a Rust enum.
-    """
+    """Represents a variant in a Rust enum."""
 
-    ident: RustIdent
-    tuple: Optional[RustTypeTuple] = None
-    attrs: RustAttributes = dataclasses.field(default_factory=list)
+    __slots__ = ("ident", "tuple", "attrs")
+
+    def __init__(
+        self,
+        ident: RustIdent,
+        tuple: Optional[RustTypeTuple] = None,
+        attrs: Optional[RustAttributes] = None,
+    ):
+        self.ident = ident
+        self.tuple = tuple
+        self.attrs = () if attrs is None else attrs
 
     def __hash__(self) -> int:
         return hash(self.ident)
 
-    def write_to(self, writer: TextIO, depth: int = 0) -> None:
+    def write_to(self, writer: IO[str], depth: int = 0) -> None:
         indent = "    " * depth
 
         if self.attrs:
             writer.write("\n".join(f"{indent}{str(attr)}" for attr in self.attrs) + "\n")
-
         writer.write(f"{indent}{self.ident}")
         if self.tuple:
             writer.write(str(self.tuple))
 
-    # noinspection PyArgumentList
     @classmethod
     def from_path(cls, path: RustPath) -> "RustVariant":
-        ident = "".join(
-            map(
-                lambda p: p.segments[-1].ident,
-                itertools.chain(
-                    filter(lambda g: isinstance(g, RustPath), path.segments[-1].generics),
-                    itertools.repeat(path, 1),
-                ),
-            )
-        )
+        # Collect segments from the path and any RustPath objects in generics
+        paths = [path]
+        for g in path.segments[-1].generics:
+            if isinstance(g, RustPath):
+                paths.append(g)
+
+        # Extract the identifiers from the last segment of each path
+        idents = []
+        for p in paths:
+            idents.append(p.segments[-1].ident)
+
+        ident = "".join(idents)
         ident = ident.replace("StrValue", "String", 1)  # HACK
         return cls(ident=ident, tuple=RustTypeTuple([path]))
 
@@ -521,15 +506,23 @@ RustVariants = Sequence[RustVariant]  # alias
 RustVariantsMut = MutableSequence[RustVariant]  # alias
 
 
-@dataclass
 class RustEnum(RustNamedType):
-    """
-    Represents a Rust enum definition.
-    """
+    """Represents a Rust enum definition."""
 
-    variants: RustVariants = dataclasses.field(default_factory=tuple)
+    __slots__ = ("variants",)
 
-    def write_to(self, writer: TextIO, depth: int = 0) -> None:
+    def __init__(
+        self,
+        ident: RustIdent,
+        variants: Optional[RustVariants] = None,
+        attrs: Optional[RustAttributes] = None,
+        visibility: str = "pub",
+    ):
+        _attrs = () if attrs is None else attrs
+        super().__init__(ident, _attrs, visibility)
+        self.variants = () if variants is None else variants
+
+    def write_to(self, writer: IO[str], depth: int = 0) -> None:
         indent = "    " * depth
 
         if self.attrs:
@@ -543,10 +536,8 @@ class RustEnum(RustNamedType):
 
 
 # Wrapper for the RustNamedType `write_to()` method call
-def salad_macro_write_to(ty: RustNamedType, writer: TextIO, depth: int = 0) -> None:
-    """
-    Writes a RustNamedType wrapping it in the Schema Salad macro
-    """
+def salad_macro_write_to(ty: RustNamedType, writer: IO[str], depth: int = 0) -> None:
+    """Write a RustNamedType wrapping it in the Schema Salad macro."""
     indent = "    " * depth
     writer.write(indent + "salad_core::define_type! {\n")
     ty.write_to(writer, 1)
@@ -558,36 +549,38 @@ def salad_macro_write_to(ty: RustNamedType, writer: TextIO, depth: int = 0) -> N
 #
 
 
-@dataclass
 class RustModuleTree:
-    """
-    Represents a Rust module with submodules and named types
-    """
+    """Represents a Rust module with submodules and named types."""
 
-    ident: RustIdent  # ASSERT: Immutable field
-    parent: "RustModuleTree"  # ASSERT: Immutable field
-    named_types: MutableMapping[RustIdent, RustNamedType] = dataclasses.field(default_factory=dict)
-    submodules: MutableMapping[RustIdent, "RustModuleTree"] = dataclasses.field(
-        default_factory=dict
-    )
+    __slots__ = ("ident", "parent", "named_types", "submodules")
+
+    def __init__(
+        self,
+        ident: RustIdent,  # ASSERT: Immutable field
+        parent: Optional["RustModuleTree"] = None,  # ASSERT: Immutable field
+        named_types: Optional[MutableMapping[RustIdent, RustNamedType]] = None,
+        submodules: Optional[MutableMapping[RustIdent, "RustModuleTree"]] = None,
+    ):
+        self.ident = ident
+        self.parent = parent
+        self.named_types = {} if named_types is None else named_types
+        self.submodules = {} if submodules is None else submodules
 
     def __hash__(self) -> int:
         return hash((self.ident, self.parent))
 
     def get_rust_path(self) -> RustPath:
-        """
-        Returns the complete Rust path from root to this module.
-        """
-        segments, current = [], self
+        """Return the complete Rust path from root to this module."""
+        segments: MutableSequence[RustPathSegment] = []
+        current: Optional["RustModuleTree"] = self
+
         while current:
             segments.append(RustPathSegment(ident=current.ident))
             current = current.parent
         return RustPath(segments=tuple(reversed(segments)))
 
     def add_submodule(self, path: Union[RustPath, str]) -> "RustModuleTree":
-        """
-        Creates a new submodule or returns an existing one with the given path.
-        """
+        """Create a new submodule or returns an existing one with the given path."""
         if isinstance(path, str):
             path = RustPath.from_str(path)
         segments = iter(path.segments)
@@ -612,25 +605,10 @@ class RustModuleTree:
             )
         return current
 
-    # def get_submodule(self, path: Union[RustPath, str]) -> Optional["RustModuleTree"]:
-    #     """
-    #     Returns a submodule from this module tree by its Rust path, if any.
-    #     """
-    #     if isinstance(path, str):
-    #         path = RustPath.from_str(path)
-    #     current, last_segment_idx = self, len(path.segments) - 1
-    #     for idx, segment in enumerate(path.segments):
-    #         if (idx == last_segment_idx) and (current.ident == segment.ident):
-    #             return current
-    #         current = current.submodules.get(segment.ident)
-    #         if not current:
-    #             return None
-    #     return None
-
     def add_named_type(self, ty: RustNamedType) -> RustPath:
-        """
-        Adds a named type to this module tree and returns its complete Rust path.
-        Raises `ValueError` if type with same name already exists
+        """Add a named type to this module tree and returns its complete Rust path.
+
+        Raises `ValueError` if type with same name already exists.
         """
         module_rust_path = self.get_rust_path()
         if ty.ident in self.named_types:
@@ -644,11 +622,8 @@ class RustModuleTree:
     #     return None
 
     def write_to_fs(self, base_path: Path) -> None:
-        """
-        Writes the module tree to the filesystem under the given base path.
-        """
+        """Write the module tree to the filesystem under the given base path."""
 
-        # noinspection PyShadowingNames
         def write_module_file(module: "RustModuleTree", path: Path, mode: str = "wt") -> None:
             with open(path, mode=mode) as module_rs:
                 if module.submodules:
@@ -669,7 +644,7 @@ class RustModuleTree:
         if not self.parent:
             path.mkdir(mode=0o755, parents=True, exist_ok=True)
             write_module_file(module=self, path=path / "lib.rs", mode="at")
-            traversing_stack.extend((path, sub_mod) for sub_mod in self.submodules.values())
+            traversing_stack.extend([(path, sub_mod) for sub_mod in self.submodules.values()])
         else:
             traversing_stack.append((path, self))
 
@@ -686,7 +661,7 @@ class RustModuleTree:
             path_module.mkdir(mode=0o755, parents=True, exist_ok=True)
             write_module_file(module=module, path=path_module / "mod.rs")
             traversing_stack.extend(
-                (path_module, sub_mod) for sub_mod in module.submodules.values()
+                [(path_module, sub_mod) for sub_mod in module.submodules.values()]
             )
 
 
@@ -696,12 +671,10 @@ class RustModuleTree:
 
 
 def rust_type_option(rust_ty: RustPath) -> RustPath:
-    # noinspection PyArgumentList
     return RustPath([RustPathSegment(ident="Option", generics=[rust_ty])])
 
 
 def rust_type_list(rust_ty: RustPath) -> RustPath:
-    # noinspection PyArgumentList
     return RustPath([
         RustPathSegment(ident="crate"),
         RustPathSegment(ident="core"),
@@ -732,13 +705,13 @@ _AVRO_TO_RUST_PRESET = {
 
 
 class RustCodeGen(CodeGenBase):
-    """
-    Rust code generator for schema salad definitions.
-    """
+    """Rust code generator for schema salad definitions."""
 
     # Static
-    PACKAGE_VERSION = "0.1.0"  # Version of the generated crate
-    __TEMPLATE_DIR = Path(str(resource_files("schema_salad").joinpath("rust"))).resolve()
+    CRATE_VERSION: ClassVar[str] = "0.1.0"  # Version of the generated crate
+    __TEMPLATE_DIR: ClassVar[Path] = Path(
+        str(resource_files("schema_salad").joinpath("rust"))
+    ).resolve()
 
     # Parsing related
     __avro_to_rust: MutableMapping[str, RustPath]
@@ -746,7 +719,6 @@ class RustCodeGen(CodeGenBase):
     __module_tree: RustModuleTree
     __schema_stack: MutableSequence[NamedSchema]
 
-    # noinspection PyMissingConstructor
     def __init__(
         self,
         base_uri: str,
@@ -754,8 +726,9 @@ class RustCodeGen(CodeGenBase):
         salad_version: str,
         target: Optional[str] = None,
     ) -> None:
+        """Initialize the RustCodeGen class."""
         self.package = package
-        self.PACKAGE_VERSION = self.__generate_crate_version(salad_version)
+        self.package_version = self.__generate_crate_version(salad_version)
         self.output_dir = Path(target or ".").resolve()
         self.document_root_attr = RustAttribute(
             meta=RustMetaList(
@@ -771,6 +744,7 @@ class RustCodeGen(CodeGenBase):
         )
 
     def parse(self, items: MutableSequence[JsonDataType]) -> None:
+        """Parse the provided item list to generate the corresponding Rust types."""
         # Create output directory
         self.__init_output_directory()
 
@@ -786,7 +760,7 @@ class RustCodeGen(CodeGenBase):
             if not schema.name.startswith(self.package):
                 continue
             if schema.name in self.__avro_to_rust:
-                _logger.warn(f"Skip parse step for schema: {schema.name}")
+                _logger.warning(f"Skip parse step for schema: {schema.name}")
                 continue
 
             rust_path = self.__parse_named_schema(schema)
@@ -816,16 +790,17 @@ class RustCodeGen(CodeGenBase):
     def __parse_record_schema(self, record: RecordSchema) -> RustPath:
         ident = rust_sanitize_type_ident(avro_shortname(record.name))
         attrs, _ = self.__parse_named_schema_attrs(record)
-        fields = set(self.__parse_record_field(f, record) for f in record.fields)
+        fields = list(set(self.__parse_record_field(f, record) for f in record.fields))
+        is_doc_root = record.get_prop("documentRoot") or False
 
-        if record.get_prop("documentRoot"):
+        if is_doc_root:
             attrs = [*attrs, self.document_root_attr]
 
         rust_path = self.__module_tree \
             .add_submodule(self.__get_submodule_path(record)) \
             .add_named_type(RustStruct(ident=ident, attrs=attrs, fields=fields))  # fmt: skip
 
-        if record.get_prop("documentRoot"):
+        if is_doc_root:
             self.__document_root_paths.append(rust_path)
         return rust_path
 
@@ -836,20 +811,22 @@ class RustCodeGen(CodeGenBase):
                 filtered_schemas_len = len(filtered_schemas)
 
                 if filtered_schemas_len == 1:
-                    rust_path = parse_field_type(filtered_schemas[0])
+                    rust_path: RustPath = parse_field_type(filtered_schemas[0])
                     if filtered_schemas_len < len(schema.schemas):
                         return rust_type_option(rust_path)
                     return rust_path
 
                 union_name = f"{parent.name}.{field.name}"
-                if rust_path := self.__avro_to_rust.get(union_name):
+                rust_path_opt: Optional[RustPath] = self.__avro_to_rust.get(union_name)
+                if rust_path_opt is not None:
                     if filtered_schemas_len < len(schema.schemas):
-                        return rust_type_option(rust_path)
-                    return rust_path
+                        return rust_type_option(rust_path_opt)
+                    return rust_path_opt
 
+                # else ...
                 named_union_schema = NamedUnionSchema.__new__(NamedUnionSchema)
-                setattr(named_union_schema, "_props", getattr(schema, "_props"))
-                setattr(named_union_schema, "_schemas", filtered_schemas)
+                named_union_schema._props = schema._props
+                named_union_schema._schemas = filtered_schemas
                 named_union_schema.set_prop("name", union_name)
                 named_union_schema.set_prop("namespace", parent.name)
                 named_union_schema.set_prop("doc", field.get_prop("doc"))
@@ -873,7 +850,11 @@ class RustCodeGen(CodeGenBase):
                 return rust_type_list(parse_field_type(schema.items))
 
             if isinstance(schema, PrimitiveSchema):
-                return self.__avro_to_rust.get(schema.type)
+                path = self.__avro_to_rust.get(schema.type)
+                if path is None:
+                    _logger.error(f"Unknown primitive schema type: {schema.type}")
+                    sys.exit(1)
+                return path
 
             raise ValueError(f"Cannot parse schema with type: '{type(schema).__name__}'.")
 
@@ -891,8 +872,8 @@ class RustCodeGen(CodeGenBase):
 
                 item_name = f"{union.name}_item"
                 named_union_schema = NamedUnionSchema.__new__(NamedUnionSchema)
-                setattr(named_union_schema, "_props", getattr(schema, "_props"))
-                setattr(named_union_schema, "_schemas", filtered_schemas)
+                named_union_schema._props = schema._props
+                named_union_schema._schemas = filtered_schemas
                 named_union_schema.set_prop("name", item_name)
                 named_union_schema.set_prop("namespace", union.name)
 
@@ -909,7 +890,15 @@ class RustCodeGen(CodeGenBase):
                 )
 
             if isinstance(schema, PrimitiveSchema):
-                return self.__avro_to_rust.get(schema.type)
+                path = self.__avro_to_rust.get(schema.type)
+                if path is None:
+                    raise ValueError(f"Unknown primitive schema type: {schema.type}")
+                return path
+
+            # Default case for any other schema type
+            raise ValueError(
+                f"Unhandled schema type in parse_variant_array_subtype: {type(schema).__name__}"
+            )
 
         def parse_variant_type(schema: Schema) -> RustVariant:
             if isinstance(schema, (RecordSchema, EnumSchema)):
@@ -924,7 +913,10 @@ class RustCodeGen(CodeGenBase):
                 )
 
             if isinstance(schema, PrimitiveSchema):
-                return RustVariant.from_path(self.__avro_to_rust.get(schema.type))
+                path = self.__avro_to_rust.get(schema.type)
+                if path is None:
+                    raise ValueError(f"Unknown primitive schema type: {schema.type}")
+                return RustVariant.from_path(path)
 
             if isinstance(schema, ArraySchema):
                 return RustVariant.from_path(
@@ -937,7 +929,7 @@ class RustCodeGen(CodeGenBase):
         # `__parse_union_schema(...)` method
         ident = rust_sanitize_type_ident(avro_shortname(union.name))
         attrs, _ = self.__parse_named_schema_attrs(union)
-        variants = set(map(parse_variant_type, union.schemas))
+        variants = list(set(map(parse_variant_type, union.schemas)))
 
         return self.__module_tree \
             .add_submodule(self.__get_submodule_path(union)) \
@@ -1020,9 +1012,22 @@ class RustCodeGen(CodeGenBase):
     #
     @staticmethod
     def __parse_named_schema_attrs(schema: NamedSchema) -> tuple[RustAttributes, int]:
-        attrs, docs_count = [], 0
+        attrs: MutableSequence[RustAttribute] = []
+        docs_count = 0
 
         if docs := schema.get_prop("doc"):
+            if isinstance(docs, str):
+                # assert isinstance(docs, str)
+                docs = docs
+            elif isinstance(docs, list) and all(isinstance(d, str) for d in docs):
+                docs = cast(list[str], docs)
+            else:
+                _logger.error(
+                    f"Invalid documentation for schema '{schema.name}': "
+                    f"expected string or list of strings, got {type(docs).__name__}"
+                )
+                docs = []
+
             rust_path_doc = RustPath.from_str("doc")
             attrs.extend(
                 RustAttribute(RustMetaNameValue(path=rust_path_doc, value=doc))
@@ -1046,9 +1051,22 @@ class RustCodeGen(CodeGenBase):
 
     @staticmethod
     def __parse_field_schema_attrs(schema: SaladField) -> tuple[RustAttributes, int]:
-        attrs, docs_count = [], 0
+        attrs: MutableSequence[RustAttribute] = []
+        docs_count = 0
 
         if docs := schema.get_prop("doc"):
+            if isinstance(docs, str):
+                # assert isinstance(docs, str)
+                docs = docs
+            elif isinstance(docs, list) and all(isinstance(d, str) for d in docs):
+                docs = cast(list[str], docs)
+            else:
+                _logger.error(
+                    f"Invalid documentation for schema '{schema.name}': "
+                    f"expected string or list of strings, got {type(docs).__name__}"
+                )
+                docs = []
+
             rust_path_doc = RustPath.from_str("doc")
             attrs.extend(
                 RustAttribute(RustMetaNameValue(path=rust_path_doc, value=doc))
@@ -1056,7 +1074,7 @@ class RustCodeGen(CodeGenBase):
             )
             docs_count = len(attrs)
 
-        metas = []
+        metas: MutableSequence[RustMeta] = []
         if default := schema.get_prop("default"):
             metas.append(RustMetaNameValue(path=RustPath.from_str("default"), value=default))
         if jsonld_predicate := schema.get_prop("jsonldPredicate"):
@@ -1082,16 +1100,19 @@ class RustCodeGen(CodeGenBase):
     def __get_submodule_path(self, schema: NamedSchema) -> RustPath:
         segments = [RustPathSegment(ident="crate")]
         if namespace_prop := schema.get_prop("namespace"):
-            if (namespace := namespace_prop.removeprefix(self.package)) not in ("", "."):
+            if not isinstance(namespace_prop, str):
+                _logger.error(
+                    f"Invalid namespace for schema '{schema.name}': "
+                    f"expected string, got {type(namespace_prop).__name__}"
+                )
+            elif (namespace := namespace_prop.removeprefix(self.package)) not in ("", "."):
                 namespace_segment = namespace.split(".")[1].lower()
                 module_ident = rust_sanitize_field_ident(namespace_segment)
                 segments.append(RustPathSegment(ident=module_ident))
         return RustPath(segments=segments)
 
     def __init_output_directory(self) -> None:
-        """
-        Initialize the output directory structure.
-        """
+        """Initialize the output directory structure."""
         if self.output_dir.is_file():
             raise ValueError(f"Output directory cannot be a file: {self.output_dir}")
         if not self.output_dir.exists():
@@ -1104,20 +1125,21 @@ class RustCodeGen(CodeGenBase):
             )
             sleep(3)
 
-        def copy2_wrapper(src: str, dst: str) -> object:
+        def copy2_wrapper(src: str, dst: str) -> Optional[object]:
             if not src.endswith("rust/Cargo.toml"):
                 return shutil.copy2(src, dst)
 
             replace_dict = [
                 ("{package_name}", self.output_dir.name),
-                ("{package_version}", self.PACKAGE_VERSION),
+                ("{package_version}", self.package_version),
             ]
 
-            with open(src, "r") as src, open(dst, "w") as dst:
-                content = src.read()
+            with open(src, "r") as src_f, open(dst, "w") as dst_f:
+                content = src_f.read()
                 for placeholder, value in replace_dict:
                     content = content.replace(placeholder, value)
-                dst.write(content)
+                dst_f.write(content)
+            return None
 
         shutil.copytree(
             RustCodeGen.__TEMPLATE_DIR,
@@ -1126,7 +1148,7 @@ class RustCodeGen(CodeGenBase):
             copy_function=copy2_wrapper,
         )
 
-    @staticmethod
-    def __generate_crate_version(salad_version: str) -> str:
+    @classmethod
+    def __generate_crate_version(cls, salad_version: str) -> str:
         salad_version = salad_version.removeprefix("v")
-        return f"{RustCodeGen.PACKAGE_VERSION}+salad{salad_version}"
+        return f"{cls.CRATE_VERSION}+salad{salad_version}"
