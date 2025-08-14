@@ -45,6 +45,7 @@ if USE_MYPYC and any(
         "schema_salad/dlang_codegen.py",
         "schema_salad/dotnet_codegen.py",
         "schema_salad/rust_codegen.py",
+        "schema_salad/rust_ast.py",
         # "schema_salad/exceptions.py", # leads to memory leaks
         "schema_salad/java_codegen.py",
         "schema_salad/jsonld_context.py",
