@@ -5,6 +5,7 @@
 import functools
 import json
 from abc import ABC, abstractmethod
+from collections import deque
 from collections.abc import Sequence
 from enum import Enum as PyEnum
 from enum import auto
@@ -167,7 +168,19 @@ class Path(Node):
     @functools.cache
     def from_str(cls, path: str) -> "Path":
         """Parse a string representation of a Rust path into a Path object."""
-        raise RuntimeError("unimplemented")
+        segments_str, leading_colon = (path[2:], True) if path.startswith("::") else (path, False)
+        segment_strings = deque(segments_str.split("::"))
+
+        segments = []
+        while segment_strings:
+            segment_str = segment_strings.popleft()
+            segment = PathSegment.from_str(segment_str)
+
+            if segment.args and segment_strings:
+                raise ValueError(f"Poorly formatted Rust path: '{path}'")
+            segments.append(segment)
+
+        return Path(tuple(segments), leading_colon)
 
 
 class Type(Node, ABC):  # pylint: disable=too-few-public-methods
