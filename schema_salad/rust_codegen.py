@@ -1,6 +1,6 @@
 """Rust code generator for schema salad definitions."""
 
-__all__ = ["RustCodeGen"]
+__all__ = ("RustCodeGen",)
 
 import functools
 import itertools
@@ -33,7 +33,7 @@ from .schema import make_valid_avro
 from .validate import avro_shortname
 
 #
-# Util Functions
+# Util FNs
 #
 
 __RUST_RESERVED_WORDS = [

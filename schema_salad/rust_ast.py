@@ -1,16 +1,55 @@
 """Python classes representing a Rust Abstract Syntax Tree (AST)."""
 
-# pylint: disable=too-few-public-methods,too-many-positional-arguments,too-many-arguments
+# pylint: disable=too-few-public-methods,too-many-arguments,too-many-lines,too-many-positional-arguments
+
+__all__ = (
+    "Node", "Ident", "Lifetime", "Lit", "PathSegment", "Path",
+    "Type", "TypePath", "TypeRef", "TypeSlice", "TypeArray", "TypeTuple",
+    "Expr", "ExprPath", "ExprLit", "AttrStyle", "Attribute",
+    "Meta", "MetaPath", "MetaSequence", "MetaNameValue",
+    "Generic", "GenericLifetime", "GenericType",
+    "Visibility", "Item", "Field", "Struct", "Variant", "Enum",
+)  # fmt: skip
 
 import functools
 import json
+import re
 from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Sequence
-from enum import Enum as PyEnum
-from enum import auto
+from enum import Enum as PyEnum, auto
 from io import StringIO
-from typing import IO, Any, Optional, Union
+from typing import IO, Any, Optional, Union, Pattern, ClassVar
+
+#
+# Util FNs
+#
+
+
+def tokenize_items(args_str: str) -> Sequence[str]:
+    """Tokenize a comma-separated string of items, handling nested delimiters."""
+    tok_list = []
+
+    tok_start = tok_end = 0
+    nested = 0
+
+    for idx, char in enumerate(args_str + ","):
+        if nested == 0 and char == ",":
+            if arg_str := (args_str[tok_start:tok_end]).strip():
+                tok_list.append(arg_str)
+            tok_start = idx + 1
+        elif char in "<([":
+            nested += 1
+        elif char in ">)]":
+            nested -= 1
+        tok_end += 1
+
+    return tok_list
+
+
+#
+# RUST Nodes
+#
 
 
 class Node(ABC):
@@ -21,6 +60,9 @@ class Ident(Node):
     """An identifier like `foo` or `bar`."""
 
     __slots__ = ("__value",)
+    __value: str
+
+    __REX: ClassVar[Pattern[str]] = re.compile(r"^[^\W\d][_\w]*$", re.MULTILINE)
 
     def __init__(self, value: str) -> None:
         """Initialize an identifier with a value.
@@ -28,6 +70,8 @@ class Ident(Node):
         Args:
             value: The string value of the identifier
         """
+        if not Ident.__REX.match(value):
+            raise ValueError(f"Poorly formatted Rust identifier: '{value}'")
         self.__value = value
 
     def __str__(self) -> str:
@@ -43,6 +87,7 @@ class Lifetime(Node):
     """A Rust lifetime like `'a`."""
 
     __slots__ = ("__value",)
+    __value: str
 
     def __init__(self, value: str) -> None:
         """Initialize a lifetime with a value.
@@ -62,10 +107,11 @@ class Lifetime(Node):
         return hash(self.__value)
 
 
-class Lit:
+class Lit(Node):
     """A Rust literal value like 42, "hello", or true."""
 
     __slots__ = ("__repr",)
+    __repr: str
 
     def __init__(self, value: Any) -> None:
         """Initialize a literal with a value.
@@ -104,6 +150,8 @@ class PathSegment(Node):
     """A segment of a path: `foo` in `foo::bar::baz`."""
 
     __slots__ = ("ident", "args")
+    ident: Ident
+    args: Sequence[Union[Lifetime, "Type"]]
 
     def __init__(
         self, ident: Ident, args: Optional[Sequence[Union[Lifetime, "Type"]]] = None
@@ -136,13 +184,30 @@ class PathSegment(Node):
     @functools.lru_cache(maxsize=8)  # It's unlikely to be used on its own
     def from_str(cls, segment: str) -> "PathSegment":
         """Parse a string representation of a path segment."""
-        raise RuntimeError("unimplemented")
+        lt_idx = segment.find("<")
+
+        if lt_idx == -1:
+            return PathSegment(ident=Ident(segment))
+
+        args_str = segment[lt_idx + 1 : -1]
+        if not args_str:
+            raise ValueError(f"Poorly formatted Rust path segment: '{segment}'")
+
+        return cls(
+            ident=Ident(segment[:lt_idx]),
+            args=[
+                Lifetime(tok) if tok.startswith("'") else Type.from_str(tok)
+                for tok in tokenize_items(args_str)
+            ],
+        )
 
 
 class Path(Node):
     """A Rust path (`foo::bar::Baz`)."""
 
     __slots__ = ("segments", "leading_colon")
+    segments: Sequence[PathSegment]
+    leading_colon: bool
 
     def __init__(self, segments: Sequence[PathSegment], leading_colon: bool = False) -> None:
         """Initialize a path with segments.
@@ -186,11 +251,25 @@ class Path(Node):
 class Type(Node, ABC):  # pylint: disable=too-few-public-methods
     """Base class for Rust types."""
 
+    @classmethod
+    def from_str(cls, value: str) -> "Type":
+        """Parse a string representation of a type into a Type object."""
+        if value.startswith("&"):
+            return TypeRef.from_str(value)
+        if value.startswith("["):
+            if ";" in value and not value.startswith("[["):
+                return TypeArray.from_str(value)
+            return TypeSlice.from_str(value)
+        if value.startswith("("):
+            return TypeTuple.from_str(value)
+        return TypePath.from_str(value)
+
 
 class TypePath(Type):
     """A type path like `std::vec::Vec<T>`."""
 
     __slots__ = ("__path",)
+    __path: Path
 
     def __init__(self, segments: Sequence[PathSegment], leading_colon: bool = False) -> None:
         """Initialize a TypePath with a Path object.
@@ -219,16 +298,28 @@ class TypePath(Type):
         return self.__path.segments
 
     @classmethod
-    def from_str(cls, path: str) -> "TypePath":
+    def from_str(cls, value: str) -> "TypePath":
         """Parse a string representation into a TypePath object."""
-        path_i = Path.from_str(path)
+        path_i = Path.from_str(value)
         return cls(path_i.segments, path_i.leading_colon)
 
 
 class TypeRef(Type):
     """A reference type like `&T` or `&mut T`."""
 
-    __slots__ = ("ty", "lifetime", "is_mut")
+    __slots__ = ("ty", "lifetime", "mutable")
+    ty: "Type"
+    lifetime: Optional[Lifetime]
+    mutable: bool
+
+    __REX: ClassVar[Pattern[str]] = re.compile(
+        r"""^\s*&\s*
+            (?:(?P<lt>'(?:[A-Za-z_][A-Za-z0-9_]*|_))\s*)?
+            (?:(?P<mut>mut)\s+)?
+            (?P<ty>\w+)$
+        """,
+        re.VERBOSE,
+    )
 
     def __init__(
         self, ty: "Type", lifetime: Optional[Lifetime] = None, mutable: bool = False
@@ -255,13 +346,28 @@ class TypeRef(Type):
         """Return the hash of the reference based on type, lifetime, and mutability."""
         return hash((self.ty, self.lifetime, self.mutable))
 
+    @classmethod
+    def from_str(cls, value: str) -> "TypeRef":
+        """Parse a string representation of a type into a TypeRef object."""
+        if not (i_match := TypeRef.__REX.match(value)):
+            raise ValueError(f"Poorly formatted Rust refence type: {value}")
+
+        (i_lifetime, i_mutable, i_ty) = i_match.groups()
+
+        return cls(
+            ty=Type.from_str(i_ty),
+            lifetime=Lifetime(i_lifetime) if i_lifetime else None,
+            mutable=bool(i_mutable),
+        )
+
 
 class TypeSlice(Type):
     """A slice type like `[T]`."""
 
     __slots__ = ("ty",)
+    ty: Type
 
-    def __init__(self, ty: "Type") -> None:
+    def __init__(self, ty: Type) -> None:
         """Initialize a slice type.
 
         Args:
@@ -278,38 +384,58 @@ class TypeSlice(Type):
         """Return the hash of the slice based on its element type."""
         return hash(self.ty)
 
+    @classmethod
+    def from_str(cls, value: str) -> "TypeSlice":
+        if not (value.startswith("[") or value.endswith("]")):
+            raise ValueError(f"Poorly formatted Rust slice type: {value}")
+        return cls(ty=Type.from_str(value[1:-1]))
+
 
 class TypeArray(Type):
     """An array type like `[T; N]`."""
 
-    __slots__ = ("ty", "len")
+    __slots__ = ("ty", "length")
+    ty: Type
+    length: int
 
-    def __init__(self, ty: "Type", length: int) -> None:
+    def __init__(self, ty: Type, length: int) -> None:
         """Initialize an array type.
 
         Args:
             ty: The type of elements in the array
-            len: The length of the array
+            length: The length of the array
         """
         super().__init__()
         self.ty = ty
-        self.len = length
+        self.length = length
 
     def __str__(self) -> str:
         """Return the string representation of the array type."""
-        return f"[{self.ty}; {self.len}]"
+        return f"[{self.ty}; {self.length}]"
 
     def __hash__(self) -> int:
         """Return the hash of the array based on element type and length."""
-        return hash((self.ty, self.len))
+        return hash((self.ty, self.length))
+
+    @classmethod
+    def from_str(cls, value: str) -> "TypeArray":
+        if not (value.startswith("[") or value.endswith("]")):
+            raise ValueError(f"Poorly formatted Rust array type: {value}")
+
+        ty_str, len_str = (s.strip() for s in (value[1:-1]).rsplit(";", maxsplit=1))
+        return cls(
+            ty=Type.from_str(ty_str),
+            length=int(len_str),
+        )
 
 
 class TypeTuple(Type):
     """A tuple type like `(T, U)`."""
 
     __slots__ = ("items",)
+    items: Sequence[Type]
 
-    def __init__(self, items: Sequence["Type"]) -> None:
+    def __init__(self, items: Sequence[Type]) -> None:
         """Initialize a tuple type.
 
         Args:
@@ -327,6 +453,15 @@ class TypeTuple(Type):
         """Return the hash of the tuple based on its item types."""
         return hash(tuple(self.items))
 
+    @classmethod
+    def from_str(cls, value: str) -> "TypeTuple":
+        if not (value.startswith("(") or value.endswith(")")):
+            raise ValueError(f"Poorly formatted Rust tuple type: {value}")
+
+        return cls(
+            items=[Type.from_str(tok) for tok in tokenize_items(value[1:-1])],
+        )
+
 
 class Expr(Node, ABC):
     """Base class for Rust expressions."""
@@ -336,6 +471,7 @@ class ExprPath(Expr):
     """A path expression like `foo::bar`."""
 
     __slots__ = ("__path",)
+    __path: Path
 
     def __init__(self, segments: Sequence[PathSegment], leading_colon: bool = False) -> None:
         """Initialize an ExprPath with a Path object.
@@ -374,6 +510,7 @@ class ExprLit(Expr):
     """A literal expression like `42`."""
 
     __slots__ = ("__lit",)
+    __lit: Lit
 
     def __init__(self, lit: Any) -> None:
         """Initialize an ExprLit with a literal value.
@@ -411,6 +548,8 @@ class Attribute(Node):
     """A Rust attribute like `#[derive(Debug)]`."""
 
     __slots__ = ("meta", "style")
+    meta: "Meta"
+    style: AttrStyle
 
     def __init__(self, meta: "Meta", style: AttrStyle = AttrStyle.OUTER) -> None:
         """Initialize an attribute.
@@ -435,7 +574,7 @@ class Attribute(Node):
     @classmethod
     @functools.cache
     def from_str(cls, path: str) -> "Attribute":
-        """Parse a string representation of a Rust attribute into a Attribute object."""
+        """Parse a string representation of a Rust attribute into an Attribute object."""
         raise RuntimeError("unimplemented")
 
 
@@ -447,6 +586,7 @@ class MetaPath(Meta):
     """A meta path item like `Clone`."""
 
     __slots__ = ("__path",)
+    __path: Path
 
     def __init__(self, segments: Sequence[PathSegment], leading_colon: bool = False) -> None:
         """Initialize a MetaPath with a Path object.
@@ -485,8 +625,10 @@ class MetaSequence(Meta):
     """A list in attributes like `derive(Debug, Clone)`."""
 
     __slots__ = ("path", "nested")
+    path: Path
+    nested: Sequence[Meta]
 
-    def __init__(self, path: Path, nested: Sequence["Meta"]) -> None:
+    def __init__(self, path: Path, nested: Sequence[Meta]) -> None:
         """Initialize a meta sequence.
 
         Args:
@@ -511,8 +653,10 @@ class MetaNameValue(Meta):
     """A name-value pair in attributes like `feature = "nightly"`."""
 
     __slots__ = ("path", "value")
+    path: Path
+    value: Expr
 
-    def __init__(self, path: Path, value: "Expr") -> None:
+    def __init__(self, path: Path, value: Expr) -> None:
         """Initialize a name-value pair meta item.
 
         Args:
@@ -540,6 +684,8 @@ class GenericLifetime(Generic):
     """A lifetime parameter like `'a` in `fn foo<'a>()`."""
 
     __slots__ = ("lifetime", "bounds")
+    lifetime: Lifetime
+    bounds: Sequence[Lifetime]
 
     def __init__(
         self,
@@ -572,6 +718,8 @@ class GenericType(Generic):
     """A type parameter like `T` in `fn foo<T>()`."""
 
     __slots__ = ("ident", "bounds")
+    ident: Ident
+    bounds: Sequence[Type]
 
     def __init__(
         self,
@@ -603,19 +751,29 @@ class GenericType(Generic):
 class Visibility(PyEnum):
     """Rust visibility modifiers."""
 
-    PUBLIC = "pub "
-    CRATE = "pub(crate) "
-    INHERITED = ""  # No explicit visibility
+    PUBLIC = auto()  # pub
+    CRATE = auto()  # pub(crate)
+    INHERITED = auto()  # No explicit visibility
 
     def __str__(self) -> str:
         """Return the string representation of the visibility modifier."""
-        return self.value
+        if self == Visibility.PUBLIC:
+            return "pub "
+        if self == Visibility.CRATE:
+            return "pub(crate) "
+        return ""
+
+    def __hash__(self) -> int:
+        """Return the hash of the visibility based on its value."""
+        return hash(self.value)
 
 
 class Item(Node, ABC):
     """Base class for Rust items (struct, field, enum, variant)."""
 
     __slots__ = ("attrs", "vis")
+    attrs: Sequence[Attribute]
+    vis: Visibility
 
     def __init__(
         self,
@@ -656,6 +814,8 @@ class Field(Item):
     """A struct field like `x: i32` or a field in a pattern."""
 
     __slots__ = ("ident", "ty")
+    ident: Ident
+    ty: Type
 
     def __init__(
         self,
@@ -691,14 +851,16 @@ class Field(Item):
 
         if self.attrs:
             writer.write("\n".join(f"{indent}{a}" for a in self.attrs) + "\n")
-
-        writer.write(f"{indent}{self.vis}{self.ident}: {self.ty},\n")
+        writer.write(f"{indent}{self.vis}{self.ident}: {self.ty}")
 
 
 class Struct(Item):
     """A struct item like `struct Foo { x: i32 }`."""
 
     __slots__ = ("ident", "fields", "generics")
+    ident: Ident
+    fields: Union[Sequence[Field], TypeTuple]
+    generics: Sequence[Generic]
 
     def __init__(
         self,
@@ -747,26 +909,30 @@ class Struct(Item):
             generics_str = ", ".join(str(gen) for gen in generics_sorted)
             writer.write(f"<{generics_str}>")
 
-        if isinstance(self.fields, TypeTuple):
-            writer.write(f"{str(self.fields)};\n")
-        elif len(self.fields) == 0:
-            writer.write(";\n")
-        else:
+        if isinstance(self.fields, Sequence) and self.fields:
             writer.write(" {\n")
             for field in self.fields:
                 field.write_to(writer, depth + 1)
+                writer.write(",\n")
             writer.write(f"{indent}}}")
+        else:
+            if isinstance(self.fields, TypeTuple):
+                writer.write(str(self.fields))
+            writer.write(";")
 
 
 class Variant(Item):
     """A variant in an enum like `Some(T)` in `enum Option<T> { Some(T), None }`."""
 
     __slots__ = ("ident", "fields", "discriminant")
+    ident: Ident
+    fields: Union[Sequence[Field], TypeTuple]
+    discriminant: Optional[Lit]
 
     def __init__(
         self,
         ident: Ident,
-        fields: Optional[Union[TypeTuple, Sequence[Field]]] = None,
+        fields: Optional[Union[Sequence[Field], TypeTuple]] = None,
         discriminant: Optional[Lit] = None,
         attrs: Optional[Sequence[Attribute]] = None,
     ) -> None:
@@ -784,8 +950,8 @@ class Variant(Item):
         self.discriminant = discriminant
 
     def __hash__(self) -> int:
-        """Return the hash of the variant based on parent hash, ident, fields, and discriminant."""
-        return hash((super().__hash__(), self.ident, self.fields, self.discriminant))
+        """Return the hash of the variant based on attributes, ident, fields, and discriminant."""
+        return hash((self.attrs, self.ident, self.fields, self.discriminant))
 
     def write_to(self, writer: IO[str], depth: int = 0) -> None:
         """Write variant to the provided writer at the specified indent depth.
@@ -802,27 +968,29 @@ class Variant(Item):
         writer.write(f"{indent}{self.ident}")
 
         if isinstance(self.fields, TypeTuple):
-            writer.write(f"{str(self.fields)},\n")
+            writer.write(f"{str(self.fields)}")
         elif len(self.fields) > 0:
             writer.write(" {\n")
             for field in self.fields:
                 field.write_to(writer, depth + 1)
-            writer.write(f"{indent}}},\n")
-        else:
-            if self.discriminant:
-                writer.write(f" = {self.discriminant}")
-            writer.write(",\n")
+                writer.write(",\n")
+            writer.write(f"{indent}}}")
+        elif self.discriminant:
+            writer.write(f" = {self.discriminant}")
 
 
 class Enum(Item):
     """An enum item like `enum Option<T> { Some(T), None }`."""
 
     __slots__ = ("ident", "variants", "generics")
+    ident: Ident
+    variants: Sequence[Variant]
+    generics: Sequence[Generic]
 
     def __init__(
         self,
         ident: Ident,
-        variants: Sequence[Variant],
+        variants: Optional[Sequence[Variant]] = None,
         generics: Optional[Sequence[Generic]] = None,
         attrs: Optional[Sequence[Attribute]] = None,
         vis: Visibility = Visibility.INHERITED,
@@ -838,7 +1006,7 @@ class Enum(Item):
         """
         super().__init__(attrs, vis)
         self.ident = ident
-        self.variants = variants
+        self.variants = variants or []
         self.generics = generics or []
 
     def __hash__(self) -> int:
@@ -870,6 +1038,78 @@ class Enum(Item):
             writer.write(" {\n")
             for variant in self.variants:
                 variant.write_to(writer, depth + 1)
+                writer.write(",\n")
             writer.write(f"{indent}}}")
         else:
             writer.write(" { }")
+
+
+class MacroStyle(PyEnum):
+    """Style of macro invocation."""
+
+    PARENTHESES = auto()  # macro!(...)
+    BRACES = auto()  # macro!{...}
+    BRACKETS = auto()  # macro![...]
+
+    def __str__(self) -> str:
+        """Return the string representation of the macro delimiter."""
+        if self == MacroStyle.PARENTHESES:
+            return "()"
+        if self == MacroStyle.BRACES:
+            return "{\n}"
+        return "[]"
+
+    def __hash__(self) -> int:
+        """Return the hash of the macro style based on its value."""
+        return hash(self.value)
+
+
+class Macro(Item):
+    """A Rust macro like `path::macro!(...)`, `path::macro!{...}`, or `path::macro![...]`."""
+
+    __slots__ = ("path", "items", "style")
+    path: Path
+    items: Union[Sequence[Item], str]
+    style: MacroStyle
+
+    def __init__(
+        self,
+        path: Path,
+        items: Union[Sequence[Item], str],
+        style: MacroStyle = MacroStyle.PARENTHESES,
+    ) -> None:
+        """Initialize a macro invocation.
+
+        Args:
+            path: The path to the macro
+            items: Sequence of items in the macro body
+            style: The style of delimiters used
+        """
+        super().__init__(None, Visibility.INHERITED)
+        self.path = path
+        self.items = items
+        self.style = style
+
+    def __hash__(self) -> int:
+        """Return the hash of the macro based on path, items, and kind."""
+        return hash((self.path, tuple(self.items), self.style))
+
+    def write_to(self, writer: IO[str], depth: int = 0) -> None:
+        """Write macro to the provided writer at the specified indent depth.
+
+        Args:
+            writer: The IO writer to write to
+            depth: Indentation depth
+        """
+        indent = "    " * depth
+        delimiters = str(self.style)
+
+        writer.write(f"{indent}{self.path}!{delimiters[:-1]}")
+
+        if isinstance(self.items, str):
+            writer.write(self.items)
+        else:
+            for item in self.items:
+                item.write_to(writer, depth + 1)
+                writer.write("\n")
+        writer.write(f"{delimiters[-1]}")
